@@ -686,6 +686,7 @@ func (r *searchResolver) evaluateLeaf(ctx context.Context) (*SearchResultsResolv
 // they occur in the same file, and taking care to update match counts.
 func unionMerge(left, right *SearchResultsResolver) *SearchResultsResolver {
 	var count int // count non-overlapping files when we merge.
+	var alreadyAdded bool
 	for _, leftMatch := range left.SearchResults {
 		for _, rightMatch := range right.SearchResults {
 			rightFileMatch, ok := rightMatch.ToFileMatch()
@@ -703,13 +704,19 @@ func unionMerge(left, right *SearchResultsResolver) *SearchResultsResolver {
 			}
 
 			if leftFileMatch.uri == rightFileMatch.uri {
+				log15.Info("merging", "uri", leftFileMatch.uri)
 				// Do not count this match, since it will be counted by the outer-loop.
 				leftFileMatch.JLineMatches = append(leftFileMatch.JLineMatches, rightFileMatch.JLineMatches...)
 				leftFileMatch.MatchCount += rightFileMatch.MatchCount
 				leftFileMatch.JLimitHit = leftFileMatch.JLimitHit || rightFileMatch.JLimitHit
 			} else {
-				left.SearchResults = append(left.SearchResults, rightMatch)
-				count++
+				if !alreadyAdded {
+					log15.Info("appending", "left", fmt.Sprintf("%d", len(left.SearchResults)), "right", "+1")
+					left.SearchResults = append(left.SearchResults, rightMatch)
+					count++
+					// if not equal, add once, not agane and agane. Should do this differently without the loop repititions though (nested union).
+					alreadyAdded = true
+				}
 			}
 		}
 		count++
@@ -989,7 +996,12 @@ func (r *searchResolver) Results(ctx context.Context) (*SearchResultsResolver, e
 				return nil, err // FIXME returns err if any subquery fails
 			}
 			if newResult != nil {
+				if result != nil {
+					log15.Info("left size", "d", fmt.Sprintf("%d", len(result.SearchResults)))
+				}
+				log15.Info("right size", "d", fmt.Sprintf("%d", len(newResult.SearchResults)))
 				result = union(result, newResult)
+				log15.Info("union size", "d", fmt.Sprintf("%d", len(result.SearchResults)))
 			}
 			// FIXME see what we do in evaluateOr to take care of
 			// match count merging.
