@@ -980,7 +980,22 @@ func (r *searchResolver) Results(ctx context.Context) (*SearchResultsResolver, e
 	case *query.OrdinaryQuery:
 		return r.evaluateLeaf(ctx)
 	case *query.AndOrQuery:
-		return r.evaluate(ctx, q.Query)
+		var result *SearchResultsResolver
+		queries := query.Dnf(q.Query)
+		for _, subquery := range queries {
+			log15.Info("Evaluating", "q", query.PrettyPrint(subquery))
+			newResult, err := r.evaluate(ctx, subquery)
+			if err != nil {
+				return nil, err // FIXME returns err if any subquery fails
+			}
+			if newResult != nil {
+				result = union(result, newResult)
+			}
+			// FIXME see what we do in evaluateOr to take care of
+			// match count merging.
+		}
+		//		return r.evaluate(ctx, q.Query)
+		return result, nil
 	}
 	// Unreachable.
 	return nil, fmt.Errorf("unrecognized type %s in searchResolver Results", reflect.TypeOf(r.query).String())
