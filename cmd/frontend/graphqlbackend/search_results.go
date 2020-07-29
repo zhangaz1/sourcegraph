@@ -684,34 +684,44 @@ func (r *searchResolver) evaluateLeaf(ctx context.Context) (*SearchResultsResolv
 // they occur in the same file, and taking care to update match counts.
 func unionMerge(left, right *SearchResultsResolver) *SearchResultsResolver {
 	var count int // count non-overlapping files when we merge.
-	for _, leftMatch := range left.SearchResults {
-		for _, rightMatch := range right.SearchResults {
-			rightFileMatch, ok := rightMatch.ToFileMatch()
-			if !ok {
-				left.SearchResults = append(left.SearchResults, rightMatch)
-				count++
-				continue
-			}
-
-			leftFileMatch, ok := leftMatch.ToFileMatch()
-			if !ok {
-				left.SearchResults = append(left.SearchResults, rightMatch)
-				count++
-				continue
-			}
-
-			if leftFileMatch.uri == rightFileMatch.uri {
-				// Do not count this match, since it will be counted by the outer-loop.
-				leftFileMatch.JLineMatches = append(leftFileMatch.JLineMatches, rightFileMatch.JLineMatches...)
-				leftFileMatch.MatchCount += rightFileMatch.MatchCount
-				leftFileMatch.JLimitHit = leftFileMatch.JLimitHit || rightFileMatch.JLimitHit
-			} else {
-				left.SearchResults = append(left.SearchResults, rightMatch)
-				count++
-			}
+	var merged []SearchResultResolver
+	rightFileMatches := make(map[string]*FileMatchResolver)
+	for _, r := range right.SearchResults {
+		if fileMatch, ok := r.ToFileMatch(); ok {
+			rightFileMatches[fileMatch.uri] = fileMatch
+			// don't add this result here, we'll do it later.
+			continue
 		}
-		count++
+		merged = append(merged, r)
 	}
+
+	for _, leftMatch := range left.SearchResults {
+		leftFileMatch, ok := leftMatch.ToFileMatch()
+		if !ok {
+			merged = append(merged, leftMatch)
+			continue
+		}
+
+		rightFileMatch := rightFileMatches[leftFileMatch.uri]
+		if rightFileMatch == nil {
+			// does not already exist, merge.
+			merged = append(merged, leftMatch)
+			count++
+			continue
+		}
+
+		// rightfilematch already exists. we're going to update it in the map. after we're done we will iterate over the map.
+		rightFileMatch.JLineMatches = append(rightFileMatch.JLineMatches, leftFileMatch.JLineMatches...)
+		rightFileMatch.MatchCount += leftFileMatch.MatchCount
+		rightFileMatch.JLimitHit = rightFileMatch.JLimitHit || leftFileMatch.JLimitHit
+		rightFileMatches[leftFileMatch.uri] = rightFileMatch
+	}
+
+	for _, v := range rightFileMatches {
+		merged = append(merged, v)
+	}
+
+	left.SearchResults = merged
 	// merge common search data.
 	left.searchResultsCommon.update(right.searchResultsCommon)
 	// set the count that tracks non-overlapping result count.
