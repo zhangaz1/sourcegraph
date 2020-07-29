@@ -67,6 +67,14 @@ type Operator struct {
 	Annotation Annotation
 }
 
+func PrettyPrint(nodes []Node) string {
+	var resultStr []string
+	for _, node := range nodes {
+		resultStr = append(resultStr, node.String())
+	}
+	return strings.Join(resultStr, " ")
+}
+
 func (node Pattern) String() string {
 	var v string
 	if node.Negated {
@@ -913,9 +921,13 @@ func ProcessAndOr(in string, options ParserOptions) (QueryInfo, error) {
 	}
 
 	query = Map(query, LowercaseFieldNames, SubstituteAliases)
-	err = validate(query)
-	if err != nil {
-		return nil, err
+	for _, subquery := range Dnf(query) {
+		err = validate(subquery)
+		if err != nil {
+			// subquery is messed up
+			return nil, err
+		}
 	}
+	// return unexpanded subquery, we'll do it there. Awkward.
 	return &AndOrQuery{Query: query}, nil
 }
