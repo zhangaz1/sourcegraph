@@ -406,7 +406,7 @@ func distribute(prefixes [][]Node, nodes []Node) [][]Node {
 // the results. Note that various optimizations are possible
 // during evaluation, but those are separate query pre- or postprocessing steps
 // separate from this general transformation.
-func dnf(query []Node) [][]Node {
+func Dnf(query []Node) [][]Node {
 	return distribute([][]Node{}, query)
 }
 
