@@ -30,6 +30,11 @@ export interface Literal {
     value: string
 }
 
+export interface Operator {
+    type: 'operator'
+    value: string
+}
+
 /**
  * Represents a filter in a search query.
  *
@@ -67,6 +72,7 @@ export type Token =
     | Filter
     | Sequence
     | Quoted
+    | Operator
 
 /**
  * Represents the failed result of running a {@link Parser} on a search query.
@@ -222,9 +228,34 @@ const pattern = <T = Literal>(regexp: RegExp, output?: T, expected?: string): Pa
     }
 }
 
+const operator = <T = Operator>(regexp: RegExp, output?: T, expected?: string): Parser<T> => {
+    if (!regexp.source.startsWith('^')) {
+        regexp = new RegExp(`^${regexp.source}`)
+    }
+    return (input, start) => {
+        const matchTarget = input.slice(Math.max(0, start))
+        if (!matchTarget) {
+            return { type: 'error', expected: expected || `/${regexp.source}/`, at: start }
+        }
+        const match = matchTarget.match(regexp)
+        if (!match) {
+            return { type: 'error', expected: expected || `/${regexp.source}/`, at: start }
+        }
+        return {
+            type: 'success',
+            range: { start, end: start + match[0].length },
+            token: (output || { type: 'operator', value: match[0] }) as T,
+        }
+    }
+}
+
 const whitespace = pattern(/\s+/, { type: 'whitespace' as const }, 'whitespace')
 
 const literal = pattern(/[^\s)]+/)
+
+// const keyword = pattern(/\bor\b|\bOR\b|\band\b|\bAND\b|\bnot\b|\bNOT\b/)
+
+const operatorParser = operator(/or|OR|and|AND|not|NOT/)
 
 const filterKeyword = pattern(/-?[A-Za-z]+(?=:)/)
 
@@ -304,7 +335,7 @@ const searchQuery = zeroOrMore(
         whitespace,
         openingParen,
         closingParen,
-        ...[filter, quoted, literal].map(token =>
+        ...[operatorParser, filter, quoted, literal].map(token =>
             followedBy(token, oneOf<{ type: 'whitespace' } | { type: 'closingParen' }>(whitespace, closingParen))
         )
     )

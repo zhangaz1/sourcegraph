@@ -16,6 +16,7 @@ export function getMonacoTokens(parsedQuery: Pick<Sequence, 'members'>): Monaco.
                 break
             case 'filter':
                 {
+                    console.log('ho ' + String(range.start))
                     tokens.push({
                         startIndex: token.filterType.range.start,
                         scopes: 'keyword',
@@ -27,6 +28,13 @@ export function getMonacoTokens(parsedQuery: Pick<Sequence, 'members'>): Monaco.
                         })
                     }
                 }
+                break
+            case 'operator':
+                console.log('hi ' + String(range.start))
+                tokens.push({
+                    startIndex: range.start,
+                    scopes: 'operator',
+                })
                 break
             default:
                 tokens.push({
