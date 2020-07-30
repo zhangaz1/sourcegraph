@@ -481,6 +481,7 @@ func (r *searchResolver) resolveRepositories(ctx context.Context, effectiveRepoF
 		r.reposMu.Lock()
 		defer r.reposMu.Unlock()
 		if r.repoRevs != nil || r.missingRepoRevs != nil || r.excludedRepos != nil || r.repoErr != nil {
+			log15.Info("cached")
 			tr.LazyPrintf("cached")
 			return r.repoRevs, r.missingRepoRevs, r.excludedRepos, r.repoOverLimit, r.repoErr
 		}

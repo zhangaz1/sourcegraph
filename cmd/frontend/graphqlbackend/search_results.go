@@ -951,13 +951,11 @@ func (r *searchResolver) evaluatePatternExpression(ctx context.Context, scopePar
 		if term.Kind == query.And || term.Kind == query.Or {
 			return r.evaluateOperator(ctx, scopeParameters, term)
 		} else if term.Kind == query.Concat {
-			q := append(scopeParameters, term)
-			r.query.(*query.AndOrQuery).Query = q
+			r.setQuery(append(scopeParameters, term))
 			return r.evaluateLeaf(ctx)
 		}
 	case query.Pattern:
-		q := append(scopeParameters, term)
-		r.query.(*query.AndOrQuery).Query = q
+		r.setQuery(append(scopeParameters, term))
 		return r.evaluateLeaf(ctx)
 	case query.Parameter:
 		// evaluatePatternExpression does not process Parameter nodes.
@@ -967,21 +965,36 @@ func (r *searchResolver) evaluatePatternExpression(ctx context.Context, scopePar
 	return nil, fmt.Errorf("unrecognized type %s in evaluatePatternExpression", reflect.TypeOf(node).String())
 }
 
+// setQuery sets a new query in the search resolver, for potentially repeated
+// calls in the search pipeline. The important part is it takes care of
+// invalidating cached repo info.
+func (r *searchResolver) setQuery(q []query.Node) {
+	r.repoRevs = nil
+	r.missingRepoRevs = nil
+	r.excludedRepos = nil
+	r.repoErr = nil
+	r.query.(*query.AndOrQuery).Query = q
+}
+
 // evaluate evaluates all expressions of a search query.
 func (r *searchResolver) evaluate(ctx context.Context, q []query.Node) (*SearchResultsResolver, error) {
+
 	scopeParameters, pattern, err := query.PartitionSearchPattern(q)
+	log15.Info("p1", "scope", query.PrettyPrint(scopeParameters))
+	if pattern != nil {
+		log15.Info("p2", "pattern", query.PrettyPrint([]query.Node{pattern}))
+	}
 	if err != nil {
 		return alertForQuery("", err).wrap(), nil
 	}
 	if pattern == nil {
-		r.query.(*query.AndOrQuery).Query = scopeParameters
+		r.setQuery(scopeParameters)
 		return r.evaluateLeaf(ctx)
 	}
 	result, err := r.evaluatePatternExpression(ctx, scopeParameters, pattern)
 	if err != nil {
 		return nil, err
 	}
-	sortResults(result.SearchResults)
 	return result, nil
 }
 
@@ -999,10 +1012,14 @@ func (r *searchResolver) Results(ctx context.Context) (*SearchResultsResolver, e
 				return nil, err // FIXME returns err if any subquery fails
 			}
 			if newResult != nil {
-				if result != nil {
-					log15.Info("left size", "d", fmt.Sprintf("%d", len(result.SearchResults)))
+				log15.Info("result size", "d", fmt.Sprintf("%d", len(newResult.SearchResults)))
+				for _, r := range newResult.SearchResults {
+					if f, ok := r.ToFileMatch(); ok {
+						log15.Info("file match", "uri", f.uri)
+					}
 				}
-				log15.Info("right size", "d", fmt.Sprintf("%d", len(newResult.SearchResults)))
+				if result != nil {
+				}
 				result = union(result, newResult)
 				log15.Info("union size", "d", fmt.Sprintf("%d", len(result.SearchResults)))
 			}
@@ -1010,6 +1027,8 @@ func (r *searchResolver) Results(ctx context.Context) (*SearchResultsResolver, e
 			// match count merging.
 		}
 		//		return r.evaluate(ctx, q.Query)
+		log15.Info("sorting")
+		sortResults(result.SearchResults)
 		return result, nil
 	}
 	// Unreachable.
@@ -1499,6 +1518,9 @@ func (r *searchResolver) doResults(ctx context.Context, forceOnlyResultType stri
 	defer cancel()
 
 	repos, missingRepoRevs, excludedRepos, alertResult, err := r.determineRepos(ctx, tr, start)
+	for _, r := range repos {
+		log15.Info("\trepos", "r", r.String())
+	}
 	if err != nil {
 		return nil, err
 	}
