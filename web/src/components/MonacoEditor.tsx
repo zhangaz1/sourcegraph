@@ -34,8 +34,9 @@ monaco.editor.defineTheme(SOURCEGRAPH_DARK, {
         { token: 'identifier', foreground: '#f2f4f8' },
         { token: 'keyword', foreground: '#569cd6' },
         // purple: #e5a2ff
+        // pink/purple from the vscode skin: #C586C0
         // sea green, progress: #69dc7c
-        { token: 'operator', foreground: '#e5a2ff' }, // sea green, rando #9effabe8
+        { token: 'operator', foreground: '#C586C0' }, // sea green, rando #9effabe8
     ],
 })
 
