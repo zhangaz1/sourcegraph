@@ -119,6 +119,7 @@ export const SearchPage: React.FunctionComponent<Props> = props => {
                                     <img
                                         className="search-page__repogroup-list-icon mr-2"
                                         src={repogroup.homepageIcon}
+                                        alt={repogroup.name + ' icon'}
                                     />
                                     <div className="d-flex flex-column">
                                         <Link

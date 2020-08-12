@@ -35,10 +35,10 @@ export const BrandLogo: React.FunctionComponent<Props> = ({
     const customBrandingLogoUrl = branding?.[isLightTheme ? 'light' : 'dark']?.logo
     return props.customIcon && props.customText ? (
         <div className="d-flex align-items-center mt-6">
-            <img {...props} src={props.customIcon} />
+            <img {...props} src={props.customIcon} alt="Sourcegraph logo" />
             <span className="h3 font-weight-normal">{props.customText}</span>
         </div>
     ) : (
-        <img {...props} src={props.customIcon || customBrandingLogoUrl || sourcegraphLogoUrl} />
+        <img {...props} src={props.customIcon || customBrandingLogoUrl || sourcegraphLogoUrl} alt="logo" />
     )
 }

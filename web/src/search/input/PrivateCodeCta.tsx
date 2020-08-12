@@ -11,7 +11,7 @@ export const PrivateCodeCta: React.FunctionComponent<Props> = props => {
     return (
         <div className={classNames('web-content private-code-cta shadow d-flex flex-row card', props.className)}>
             <div className="private-code-cta__icon-column d-flex flex-column align-items-center">
-                <img src={logoSource} className="private-code-cta__logo" />
+                <img src={logoSource} className="private-code-cta__logo" alt="Download Sourcegraph" />
             </div>
             <div>
                 <h3>Search your private code</h3>
