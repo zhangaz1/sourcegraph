@@ -957,3 +957,20 @@ func TestMatchUnaryKeyword(t *testing.T) {
 		})
 	}
 }
+
+func TestProcessAndOr(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		input: `(Search\()`,
+		want:  ``,
+
+		// (Search\() // this should work => EmptyGroupsToLiteral interferes.
+		// ( Search\( )    // this should work
+		// (Search()
+		// (Search\( or Search\()
+		// (Search\( or Search\(
+		// Search\() // no error?
+	}
+}

@@ -547,7 +547,7 @@ func (p *parser) ParsePattern() Pattern {
 
 	value, advance, sawDanglingParen := ScanValue(p.buf[p.pos:], isSet(p.heuristics, allowDanglingParens))
 	var labels labels
-	if sawDanglingParen {
+	if isSet(p.heuristics, allowDanglingParens) && sawDanglingParen {
 		labels = HeuristicDanglingParens | Regexp
 	} else {
 		labels = Regexp
