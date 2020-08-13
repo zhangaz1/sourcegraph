@@ -24,7 +24,7 @@ export const UserAvatar: React.FunctionComponent<Props> = ({ size, user, classNa
         } catch {
             // noop
         }
-        return <img className={`user-avatar ${className || ''}`} src={url} {...otherProps} alt="User menu" />
+        return <img className={`user-avatar ${className || ''}`} src={url} {...otherProps} />
     }
     return null
 }
