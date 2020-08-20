@@ -376,7 +376,7 @@ func product(left [][]Node, right []Node) [][]Node {
 	return result
 }
 
-// distribute applies the distributed property to nodes. See the dnf function
+// distribute applies the distributed property to nodes. See the Dnf function
 // for context. Its first argument takes the current set of prefixes to prepend
 // to each term in an or-expression.
 func distribute(prefixes [][]Node, nodes []Node) [][]Node {
@@ -404,7 +404,7 @@ func distribute(prefixes [][]Node, nodes []Node) [][]Node {
 	return prefixes
 }
 
-// dnf returns the Disjunctive Normal Form of a query (a flat sequence of
+// Dnf returns the Disjunctive Normal Form of a query (a flat sequence of
 // or-expressions) by applying the distributive property on (possibly nested)
 // or-expressions. For example, the query:
 //
@@ -417,7 +417,7 @@ func distribute(prefixes [][]Node, nodes []Node) [][]Node {
 // the results. Note that various optimizations are possible
 // during evaluation, but those are separate query pre- or postprocessing steps
 // separate from this general transformation.
-func dnf(query []Node) [][]Node {
+func Dnf(query []Node) [][]Node {
 	return distribute([][]Node{}, query)
 }
 
