@@ -988,6 +988,14 @@ func ProcessAndOr(in string, options ParserOptions) (QueryInfo, error) {
 		}
 	}
 
+	for _, subquery := range Dnf(query) {
+		err = validate(subquery)
+		if err != nil {
+			// Subquery is messed up. Can we make this more informative?
+			return nil, err
+		}
+	}
+
 	err = validate(query)
 	if err != nil {
 		return nil, err
