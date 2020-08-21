@@ -64,6 +64,10 @@ func TestAndOrQuery_Validation(t *testing.T) {
 			want:       "The query contains a negated search pattern. Structural search does not support negated search patterns at the moment.",
 			searchType: SearchTypeStructural,
 		},
+		{
+			input: "repo:foo repo:bar",
+			want:  "filter repo: seen more than once. If you meant to search any of these repos, use the | operator, like repo:one|two",
+		},
 	}
 	for _, c := range cases {
 		t.Run("validate and/or query", func(t *testing.T) {
@@ -126,11 +130,11 @@ func TestAndOrQuery_RegexpPatterns(t *testing.T) {
 		field string
 		want
 	}{
-		query: "r:a r:b -r:c",
+		query: "r:a -r:b -r:c",
 		field: "repo",
 		want: want{
-			values:        []string{"a", "b"},
-			negatedValues: []string{"c"},
+			values:        []string{"a"},
+			negatedValues: []string{"b", "c"},
 		},
 	}
 	t.Run("for regexp field", func(t *testing.T) {

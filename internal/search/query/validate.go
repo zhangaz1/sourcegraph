@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/src-d/enry/v2"
 )
 
@@ -326,12 +327,20 @@ func validateField(field, value string, negated bool, seen map[string]struct{}) 
 func validate(nodes []Node) error {
 	var err error
 	seen := map[string]struct{}{}
+	var seenPositiveRepoFilter bool
 	VisitParameter(nodes, func(field, value string, negated bool, _ Annotation) {
 		if err != nil {
 			return
 		}
 		err = validateField(field, value, negated, seen)
 		seen[field] = struct{}{}
+		if field == FieldRepo && !negated {
+			if seenPositiveRepoFilter {
+				// We see a repo: filter for the second time.
+				err = errors.New(`filter repo: seen more than once. If you meant to search any of these repos, use the | operator, like repo:one|two`)
+			}
+			seenPositiveRepoFilter = true
+		}
 	})
 	VisitPattern(nodes, func(value string, _ bool, annotation Annotation) {
 		if annotation.Labels.isSet(Regexp) {
@@ -341,5 +350,8 @@ func validate(nodes []Node) error {
 			_, err = regexp.Compile(value)
 		}
 	})
+	if err != nil {
+		return err
+	}
 	return err
 }
