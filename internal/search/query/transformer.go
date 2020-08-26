@@ -592,3 +592,28 @@ func concatRevFilters(nodes []Node) []Node {
 		return Parameter{Value: value, Field: FieldRepo, Negated: negated}
 	})
 }
+
+// patternToCommitMessage converts a pattern to a value of message: if
+// type:commit is set, ensuring that the pattern searches over the git commit
+// log.
+func patternToCommitMessage(nodes []Node) []Node {
+	runTransformer := exists(nodes, func(node Node) bool {
+		if n, ok := node.(Parameter); ok && n.Field == FieldType && n.Value == "commit" {
+			return true
+		}
+		return false
+	})
+	// TODO: Issue: multiple space-separated message: fields will implicity mean OR. We want it to be concat. But to make it concat,
+	// we nee to remove the .* processing in getPatternInfo. And thats a risky change right now.
+	if runTransformer {
+		return MapPattern(nodes, func(value string, negated bool, annotation Annotation) Node {
+			return Parameter{
+				Field:      FieldMessage,
+				Value:      value,
+				Negated:    negated,
+				Annotation: annotation,
+			}
+		})
+	}
+	return nodes
+}
