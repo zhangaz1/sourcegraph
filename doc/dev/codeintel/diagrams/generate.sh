@@ -8,6 +8,7 @@ declare mermaid_diagrams=(
   resolve-page
   hover
   upload
+  indexer
   extension-definitions
   extension-references
   extension-hover

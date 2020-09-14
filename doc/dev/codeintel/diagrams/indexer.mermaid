@@ -1,0 +1,30 @@
+sequenceDiagram
+  Indexer  ->>+ API: gimme work
+  API     -->>- Indexer: here go
+
+  Indexer  ->>+ API: gimme repo
+  API     -->>- Indexer: here go
+
+  Indexer ->>+ Firecracker: start VM
+  Firecracker -->>- Indexer: ok here go
+
+  Indexer ->>+ Firecracker: copy repo/images
+  Firecracker -->>- Indexer: ok
+
+  Indexer ->>+ Firecracker: exec docker lsif-go
+  Firecracker ->>+ lsif-go: index pls
+  lsif-go -->>- Firecracker: ok did it
+  Firecracker -->>- Indexer: ok
+
+  Indexer ->>+ Firecracker: exec docker src-cli
+  Firecracker ->>+ src-cli: upload pls
+  src-cli ->>+ API: upload
+  API -->>- src-cli: ok
+  src-cli -->>- Firecracker: ok
+  Firecracker -->>- Indexer: ok
+
+  Indexer ->>+ Firecracker: shutdown VM
+  Firecracker -->>- Indexer: ok
+
+  Indexer ->>+ Firecracker: remove VM
+  Firecracker -->>- Indexer: ok
