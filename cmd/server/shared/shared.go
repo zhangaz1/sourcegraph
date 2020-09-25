@@ -184,6 +184,16 @@ func Main() {
 		procDiedAction = goreman.Ignore
 	}
 
+	// If in restore mode, only run PostgreSQL
+	if restore, _ := strconv.ParseBool(os.Getenv("PGRESTORE")); restore {
+		procfile = []string{}
+		if line, err := maybePostgresProcFile(); err != nil {
+			log.Fatal(err)
+		} else if line != "" {
+			procfile = append(procfile, line)
+		}
+	}
+
 	err = goreman.Start([]byte(strings.Join(procfile, "\n")), goreman.Options{
 		RPCAddr:        "127.0.0.1:5005",
 		ProcDiedAction: procDiedAction,
