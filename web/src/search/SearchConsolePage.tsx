@@ -142,41 +142,43 @@ export const SearchConsolePage: React.FunctionComponent<SearchConsolePageProps> 
     return (
         <div className="w-100 p-2">
             <PageTitle title="Search console" />
-            <div className="d-flex">
-                <div className="flex-1 p-1">
-                    <div className="mb-1 d-flex align-items-center justify-content-between">
-                        <div />
-                        <button className="btn btn-lg btn-primary" type="button" onClick={nextSearch}>
-                            Search
-                        </button>
+            <div className="container-fluid p-1">
+                <div className="row">
+                    <div className="col-md-4 mt-1 p-1">
+                        <MonacoEditor
+                            {...props}
+                            language="sourcegraphSearch"
+                            options={options}
+                            height={600}
+                            editorWillMount={setMonacoInstance}
+                            onEditorCreated={setEditorInstance}
+                            value={searchQueries.value}
+                        />
+                        <div className="mt-1 d-flex align-items-center justify-content-between">
+                            <div />
+                            <button className="btn btn-lg btn-primary" type="button" onClick={nextSearch}>
+                                Search
+                            </button>
+                        </div>
                     </div>
-                    <MonacoEditor
-                        {...props}
-                        language="sourcegraphSearch"
-                        options={options}
-                        height={600}
-                        editorWillMount={setMonacoInstance}
-                        onEditorCreated={setEditorInstance}
-                        value={searchQueries.value}
-                    />
-                </div>
-                <div className="flex-1 p-1 search-console-page__results">
-                    {resultsOrError &&
-                        (resultsOrError === 'loading' ? (
-                            <LoadingSpinner />
-                        ) : (
-                            <SearchResultsList
-                                {...props}
-                                allExpanded={allExpanded}
-                                resultsOrError={resultsOrError}
-                                onExpandAllResultsToggle={onExpandAllResultsToggle}
-                                showSavedQueryButton={false}
-                                onDidCreateSavedQuery={voidCallback}
-                                onSavedQueryModalClose={voidCallback}
-                                onShowMoreResultsClick={showMoreResults}
-                                onSaveQueryClick={voidCallback}
-                            />
-                        ))}
+                    <div className="col-md-8 search-console-page__results">
+                        {resultsOrError &&
+                            (resultsOrError === 'loading' ? (
+                                <LoadingSpinner />
+                            ) : (
+                                <SearchResultsList
+                                    {...props}
+                                    allExpanded={allExpanded}
+                                    resultsOrError={resultsOrError}
+                                    onExpandAllResultsToggle={onExpandAllResultsToggle}
+                                    showSavedQueryButton={false}
+                                    onDidCreateSavedQuery={voidCallback}
+                                    onSavedQueryModalClose={voidCallback}
+                                    onShowMoreResultsClick={showMoreResults}
+                                    onSaveQueryClick={voidCallback}
+                                />
+                            ))}
+                    </div>
                 </div>
             </div>
         </div>
