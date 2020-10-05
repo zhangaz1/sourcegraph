@@ -2098,10 +2098,10 @@
   resolved "https://registry.npmjs.org/@mdx-js/react/-/react-1.6.6.tgz#71ece2a24261eed0e184c0ef9814fcb77b1a4aee"
   integrity sha512-zOOdNreHUNSFQ0dg3wYYg9sOGg2csf7Sk8JGBigeBq+4Xk4LO0QdycGAmgKNfeme+SyBV5LBIPjt1NNsScyWEQ==
 
-"@mermaid-js/mermaid-cli@^8.7.0":
-  version "8.7.0"
-  resolved "https://registry.npmjs.org/@mermaid-js/mermaid-cli/-/mermaid-cli-8.7.0.tgz#8c798996b9fa0bec8acf6b946cbafc6407e51870"
-  integrity sha512-Eh5ivob7wS4YCbL9K90/I0TYTqrknCCWAIYipeU8T1Klrpqb6/1LszkoBFzDogM9UK94Lg8vH1XBYv5J4f3/EA==
+"@mermaid-js/mermaid-cli@^8.8.1":
+  version "8.8.1"
+  resolved "https://registry.npmjs.org/@mermaid-js/mermaid-cli/-/mermaid-cli-8.8.1.tgz#94b6125d933dda82fcd987b2947233c9b9efc09c"
+  integrity sha512-cESM33+QjLuHUcMk9B2qpsplx4h+97adwI/P0/2SvFwFlhVsFfi82a53vV1638hIBLac+RxGG2aT+Fq8YYHHRQ==
   dependencies:
     chalk "^4.1.0"
     commander "^6.0.0"
