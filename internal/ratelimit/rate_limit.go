@@ -1,6 +1,7 @@
 package ratelimit
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -67,6 +68,7 @@ func (c *Monitor) RecommendedWaitForBackgroundOp(cost int) time.Duration {
 
 	now := c.now()
 	if !c.retry.IsZero() {
+		println("retry is not zero")
 		if remaining := c.retry.Sub(now); remaining > 0 {
 			return remaining
 		}
@@ -74,6 +76,7 @@ func (c *Monitor) RecommendedWaitForBackgroundOp(cost int) time.Duration {
 	}
 
 	if !c.known {
+		println("not known")
 		return 0
 	}
 
@@ -81,6 +84,7 @@ func (c *Monitor) RecommendedWaitForBackgroundOp(cost int) time.Duration {
 	limitRemaining := float64(c.remaining)
 	resetAt := c.reset
 	if now.After(c.reset) {
+		println("has been reset")
 		limitRemaining = float64(c.limit)
 		resetAt = now.Add(1 * time.Hour)
 	}
@@ -91,14 +95,18 @@ func (c *Monitor) RecommendedWaitForBackgroundOp(cost int) time.Duration {
 
 	n := limitRemaining / float64(cost) // number of times this op can run before exhausting rate limit
 	if n < 1 {
+		println("n less than 1")
 		return timeRemaining
 	}
 	if n > 500 {
+		println("n more than 500")
 		return 0
 	}
 	if n > 250 {
+		println("n more than 250")
 		return 200 * time.Millisecond
 	}
+	println("limit calc'ed")
 	// N is limitRemaining / cost. timeRemaining / N is thus
 	// timeRemaining / (limitRemaining / cost). However, time.Duration is
 	// an integer type, and drops fractions. We get more accurate
@@ -141,6 +149,28 @@ func (c *Monitor) Update(h http.Header) {
 	c.limit = limit
 	c.remaining = remaining
 	c.reset = time.Unix(resetAtSeconds, 0)
+}
+
+func (c *Monitor) String() string {
+	return fmt.Sprintf("RateLimitMonitor stats:\n  retry: %q\n  known: %t\n  remaining: %d\n  limit: %d\n  reset: %q\n", c.retry, c.known, c.remaining, c.limit, c.reset)
+}
+
+// UpdateFromGraphQL updates the monitor's rate limit information based on the HTTP response headers.
+func (c *Monitor) UpdateFromGraphQL(limit, remaining int, resetAt time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// TODO: should only set if limit was exceeded.
+	if !resetAt.IsZero() && remaining <= 0 {
+		c.retry = resetAt
+	} else {
+		c.retry = time.Time{}
+	}
+
+	c.known = true
+	c.limit = limit
+	c.remaining = remaining
+	c.reset = resetAt
 }
 
 func (c *Monitor) now() time.Time {
@@ -212,4 +242,47 @@ func (r *Registry) Count() int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return len(r.rateLimiters)
+}
+
+// DefaultMonitorRegistry is the default global rate limit registry. It will hold rate limit mappings
+// for each instance of our services.
+var DefaultMonitorRegistry = NewMonitorRegistry()
+
+// NewMonitorRegistry creates a new empty registry.
+func NewMonitorRegistry() *MonitorRegistry {
+	return &MonitorRegistry{
+		rateLimiters: make(map[string]*Monitor),
+	}
+}
+
+// MonitorRegistry keeps a mapping of external service URL to *rate.Limiter.
+// By default an infinite limiter is returned.
+type MonitorRegistry struct {
+	mu sync.Mutex
+	// Rate limiter per code host, keys are the normalized base URL for a
+	// code host.
+	rateLimiters map[string]*Monitor
+}
+
+// Get fetches the rate limiter associated with the given code host. If none has been
+// configured an infinite limiter is returned.
+func (r *MonitorRegistry) Get(baseURL string) *Monitor {
+	return r.GetOrSet(baseURL, nil)
+}
+
+// GetOrSet fetches the rate limiter associated with the given code host. If none has been configured
+// yet, the provided limiter will be set. A nil limiter will fall back to an infinite limiter.
+func (r *MonitorRegistry) GetOrSet(baseURL string, fallback *Monitor) *Monitor {
+	baseURL = normaliseURL(baseURL)
+	if fallback == nil {
+		panic("provide fallback")
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	l := r.rateLimiters[baseURL]
+	if l == nil {
+		l = fallback
+		r.rateLimiters[baseURL] = l
+	}
+	return l
 }

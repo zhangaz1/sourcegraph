@@ -146,13 +146,14 @@ func NewClient(apiURL *url.URL, token string, cli httpcli.Doer) *Client {
 	})
 
 	rl := ratelimit.DefaultRegistry.Get(apiURL.String())
+	rlm := ratelimit.DefaultMonitorRegistry.GetOrSet(apiURL.String(), &ratelimit.Monitor{HeaderPrefix: "X-"})
 
 	return &Client{
 		apiURL:           apiURL,
 		githubDotCom:     urlIsGitHubDotCom(apiURL),
 		token:            token,
 		httpClient:       cli,
-		rateLimitMonitor: &ratelimit.Monitor{HeaderPrefix: "X-"},
+		rateLimitMonitor: rlm,
 		repoCache:        newRepoCache(apiURL, token),
 		rateLimit:        rl,
 	}
@@ -326,9 +327,192 @@ func (c *Client) requestGraphQL(ctx context.Context, query string, vars map[stri
 	return err
 }
 
+const costQuery = `
+	rateLimit {
+		cost
+		limit
+		remaining
+		resetAt
+	}
+}
+`
+
+func (c *GraphQLClient) request(ctx context.Context, query string, vars map[string]interface{}, result interface{}) (err error) {
+	reqBody, err := json.Marshal(struct {
+		Query     string                 `json:"query"`
+		Variables map[string]interface{} `json:"variables"`
+	}{
+		Query:     strings.TrimSuffix(query, "}") + costQuery,
+		Variables: vars,
+	})
+	if err != nil {
+		return err
+	}
+
+	// GitHub.com GraphQL endpoint is api.github.com/graphql. GitHub Enterprise is /api/graphql (the
+	// REST endpoint is /api/v3, necessitating the "..").
+	graphqlEndpoint := "/graphql"
+	if !c.githubDotCom {
+		graphqlEndpoint = "../graphql"
+	}
+	req, err := http.NewRequest("POST", graphqlEndpoint, bytes.NewReader(reqBody))
+	if err != nil {
+		return err
+	}
+
+	// Enable Checks API
+	// https://developer.github.com/v4/previews/#checks
+	req.Header.Add("Accept", "application/vnd.github.antiope-preview+json")
+	var respBody struct {
+		Data   json.RawMessage `json:"data"`
+		Errors graphqlErrors   `json:"errors"`
+	}
+
+	cost, err := estimateGraphQLCost(query)
+	if err != nil {
+		return errors.Wrap(err, "estimating graphql cost")
+	}
+
+	waitTime := c.rateLimitMonitor.RecommendedWaitForBackgroundOp(cost)
+
+	fmt.Printf("Rate limiter estimated cost of %d. Recommended wait time is %q\n", cost, waitTime.String())
+
+	time.Sleep(waitTime)
+
+	if err := c.do(ctx, req, &respBody); err != nil {
+		return err
+	}
+
+	// If the GraphQL response has errors, still attempt to unmarshal the data portion, as some
+	// requests may expect errors but have useful responses (e.g., querying a list of repositories,
+	// some of which you expect to 404).
+	if len(respBody.Errors) > 0 {
+		err = respBody.Errors
+	}
+	if result != nil && respBody.Data != nil {
+		var costEstimate struct {
+			RateLimit struct {
+				Cost      int
+				Limit     int
+				Remaining int
+				ResetAt   time.Time
+			}
+		}
+		if err0 := unmarshal(respBody.Data, &costEstimate); err0 != nil && err == nil {
+			return err0
+		}
+		fmt.Printf("c.rateLimitMonitor.UpdateFromGraphQL(%d, %d, %q)\n", costEstimate.RateLimit.Limit, costEstimate.RateLimit.Remaining, costEstimate.RateLimit.ResetAt)
+		c.rateLimitMonitor.UpdateFromGraphQL(costEstimate.RateLimit.Limit, costEstimate.RateLimit.Remaining, costEstimate.RateLimit.ResetAt)
+		println(c.rateLimitMonitor.String())
+		if err0 := unmarshal(respBody.Data, result); err0 != nil && err == nil {
+			return err0
+		}
+	}
+	return err
+}
+
+func (c *GraphQLClient) do(ctx context.Context, req *http.Request, result interface{}) (err error) {
+	req.URL.Path = path.Join(c.apiURL.Path, req.URL.Path)
+	req.URL = c.apiURL.ResolveReference(req.URL)
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	if c.token != "" {
+		req.Header.Set("Authorization", "bearer "+c.token)
+	}
+
+	var resp *http.Response
+
+	span, ctx := ot.StartSpanFromContext(ctx, "GitHub")
+	span.SetTag("URL", req.URL.String())
+	defer func() {
+		if err != nil {
+			span.SetTag("error", err.Error())
+		}
+		if resp != nil {
+			span.SetTag("status", resp.Status)
+		}
+		span.Finish()
+	}()
+
+	resp, err = c.httpClient.Do(req.WithContext(ctx))
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		var err APIError
+		if body, readErr := ioutil.ReadAll(io.LimitReader(resp.Body, 1<<13)); readErr != nil { // 8kb
+			err.Message = fmt.Sprintf("failed to read error response from GitHub API: %v: %q", readErr, string(body))
+		} else if decErr := json.Unmarshal(body, &err); decErr != nil {
+			err.Message = fmt.Sprintf("failed to decode error response from GitHub API: %v: %q", decErr, string(body))
+		}
+		err.URL = req.URL.String()
+		err.Code = resp.StatusCode
+		return &err
+	}
+	return json.NewDecoder(resp.Body).Decode(result)
+}
+
 // RateLimitMonitor exposes the rate limit monitor
 func (c *Client) RateLimitMonitor() *ratelimit.Monitor {
 	return c.rateLimitMonitor
+}
+
+// GraphQLClient is a rate limiting GitHub GraphQL API client.
+type GraphQLClient struct {
+	// apiURL is the base URL of a GitHub API. It must point to the base URL of the GitHub API. This
+	// is https://api.github.com for GitHub.com and http[s]://[github-enterprise-hostname]/api for
+	// GitHub Enterprise.
+	apiURL *url.URL
+
+	// githubDotCom is true if this client connects to github.com.
+	githubDotCom bool
+
+	// token is the personal access token used to authenticate requests. May be empty, in which case
+	// the default behavior is to make unauthenticated requests.
+	// 🚨 SECURITY: Should not be changed after client creation to prevent unauthorized access to the
+	// repository cache. Use `WithToken` to create a new client with a different token instead.
+	token string
+
+	// httpClient is the HTTP client used to make requests to the GitHub API.
+	httpClient httpcli.Doer
+
+	// rateLimitMonitor is the API rate limit monitor.
+	rateLimitMonitor *ratelimit.Monitor
+}
+
+// NewGraphQLClient creates a new GitHub API client with an optional default personal access token.
+//
+// apiURL must point to the base URL of the GitHub API. See the docstring for Client.apiURL.
+func NewGraphQLClient(apiURL *url.URL, token string, cli httpcli.Doer) *GraphQLClient {
+	apiURL = canonicalizedURL(apiURL)
+	if gitHubDisable {
+		cli = disabledClient{}
+	}
+	if cli == nil {
+		cli = http.DefaultClient
+	}
+
+	cli = requestCounter.Doer(cli, func(u *url.URL) string {
+		// The first component of the Path mostly maps to the type of API
+		// request we are making. See `curl https://api.github.com` for the
+		// exact mapping
+		var category string
+		if parts := strings.SplitN(u.Path, "/", 3); len(parts) > 1 {
+			category = parts[1]
+		}
+		return category
+	})
+
+	rlm := ratelimit.DefaultMonitorRegistry.GetOrSet(apiURL.String(), &ratelimit.Monitor{HeaderPrefix: "X-"})
+
+	return &GraphQLClient{
+		apiURL:           apiURL,
+		githubDotCom:     urlIsGitHubDotCom(apiURL),
+		token:            token,
+		httpClient:       cli,
+		rateLimitMonitor: rlm,
+	}
 }
 
 // estimateGraphQLCost estimates the cost of the query as described here:

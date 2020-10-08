@@ -467,7 +467,7 @@ type CreatePullRequestInput struct {
 }
 
 // CreatePullRequest creates a PullRequest on Github.
-func (c *Client) CreatePullRequest(ctx context.Context, in *CreatePullRequestInput) (*PullRequest, error) {
+func (c *GraphQLClient) CreatePullRequest(ctx context.Context, in *CreatePullRequestInput) (*PullRequest, error) {
 	var q strings.Builder
 	q.WriteString(pullRequestFragments)
 	q.WriteString(`mutation	CreatePullRequest($input:CreatePullRequestInput!) {
@@ -489,7 +489,7 @@ func (c *Client) CreatePullRequest(ctx context.Context, in *CreatePullRequestInp
 	}
 
 	input := map[string]interface{}{"input": in}
-	err := c.requestGraphQL(ctx, q.String(), input, &result)
+	err := c.request(ctx, q.String(), input, &result)
 	if err != nil {
 		if gqlErrs, ok := err.(graphqlErrors); ok && len(gqlErrs) == 1 {
 			e := gqlErrs[0]
@@ -519,7 +519,7 @@ type UpdatePullRequestInput struct {
 }
 
 // UpdatePullRequest creates a PullRequest on Github.
-func (c *Client) UpdatePullRequest(ctx context.Context, in *UpdatePullRequestInput) (*PullRequest, error) {
+func (c *GraphQLClient) UpdatePullRequest(ctx context.Context, in *UpdatePullRequestInput) (*PullRequest, error) {
 	var q strings.Builder
 	q.WriteString(pullRequestFragments)
 	q.WriteString(`mutation	UpdatePullRequest($input:UpdatePullRequestInput!) {
@@ -541,7 +541,7 @@ func (c *Client) UpdatePullRequest(ctx context.Context, in *UpdatePullRequestInp
 	}
 
 	input := map[string]interface{}{"input": in}
-	err := c.requestGraphQL(ctx, q.String(), input, &result)
+	err := c.request(ctx, q.String(), input, &result)
 	if err != nil {
 		if gqlErrs, ok := err.(graphqlErrors); ok && len(gqlErrs) == 1 {
 			e := gqlErrs[0]
@@ -559,7 +559,7 @@ func (c *Client) UpdatePullRequest(ctx context.Context, in *UpdatePullRequestInp
 }
 
 // ClosePullRequest closes the PullRequest on Github.
-func (c *Client) ClosePullRequest(ctx context.Context, pr *PullRequest) error {
+func (c *GraphQLClient) ClosePullRequest(ctx context.Context, pr *PullRequest) error {
 	var q strings.Builder
 	q.WriteString(pullRequestFragments)
 	q.WriteString(`mutation	ClosePullRequest($input:ClosePullRequestInput!) {
@@ -583,7 +583,7 @@ func (c *Client) ClosePullRequest(ctx context.Context, pr *PullRequest) error {
 	input := map[string]interface{}{"input": struct {
 		ID string `json:"pullRequestId"`
 	}{ID: pr.ID}}
-	err := c.requestGraphQL(ctx, q.String(), input, &result)
+	err := c.request(ctx, q.String(), input, &result)
 	if err != nil {
 		return err
 	}
@@ -596,7 +596,7 @@ func (c *Client) ClosePullRequest(ctx context.Context, pr *PullRequest) error {
 }
 
 // ReopenPullRequest reopens the PullRequest on Github.
-func (c *Client) ReopenPullRequest(ctx context.Context, pr *PullRequest) error {
+func (c *GraphQLClient) ReopenPullRequest(ctx context.Context, pr *PullRequest) error {
 	var q strings.Builder
 	q.WriteString(pullRequestFragments)
 	q.WriteString(`mutation	ReopenPullRequest($input:ReopenPullRequestInput!) {
@@ -620,7 +620,7 @@ func (c *Client) ReopenPullRequest(ctx context.Context, pr *PullRequest) error {
 	input := map[string]interface{}{"input": struct {
 		ID string `json:"pullRequestId"`
 	}{ID: pr.ID}}
-	err := c.requestGraphQL(ctx, q.String(), input, &result)
+	err := c.request(ctx, q.String(), input, &result)
 	if err != nil {
 		return err
 	}
@@ -633,7 +633,7 @@ func (c *Client) ReopenPullRequest(ctx context.Context, pr *PullRequest) error {
 }
 
 // LoadPullRequests loads a list of PullRequests from Github.
-func (c *Client) LoadPullRequests(ctx context.Context, prs ...*PullRequest) error {
+func (c *GraphQLClient) LoadPullRequests(ctx context.Context, prs ...*PullRequest) error {
 	const batchSize = 15
 	// We load prs in batches to avoid hitting Github's GraphQL node limit
 	for i := 0; i < len(prs); i += batchSize {
@@ -648,7 +648,7 @@ func (c *Client) LoadPullRequests(ctx context.Context, prs ...*PullRequest) erro
 	return nil
 }
 
-func (c *Client) loadPullRequests(ctx context.Context, prs ...*PullRequest) error {
+func (c *GraphQLClient) loadPullRequests(ctx context.Context, prs ...*PullRequest) error {
 	type repository struct {
 		Owner string
 		Name  string
@@ -696,19 +696,27 @@ func (c *Client) loadPullRequests(ctx context.Context, prs ...*PullRequest) erro
 
 	q.WriteString("}")
 
-	var results map[string]map[string]*struct {
-		PullRequest
-		Participants  struct{ Nodes []Actor }
-		TimelineItems struct{ Nodes []TimelineItem }
-	}
+	var results map[string]map[string]json.RawMessage
 
-	err := c.requestGraphQL(ctx, q.String(), nil, &results)
+	err := c.request(ctx, q.String(), nil, &results)
 	if err != nil {
 		return err
 	}
 
 	for repoLabel, prs := range results {
-		for prLabel, pr := range prs {
+		if repoLabel == "rateLimit" {
+			continue
+		}
+		for prLabel, prJ := range prs {
+			var pr *struct {
+				PullRequest
+				Participants  struct{ Nodes []Actor }
+				TimelineItems struct{ Nodes []TimelineItem }
+			}
+			err = unmarshal(prJ, pr)
+			if err != nil {
+				return err
+			}
 			pr.PullRequest.Participants = pr.Participants.Nodes
 			pr.PullRequest.TimelineItems = pr.TimelineItems.Nodes
 			*labeled[repoLabel].PRs[prLabel] = pr.PullRequest
@@ -721,7 +729,7 @@ func (c *Client) loadPullRequests(ctx context.Context, prs ...*PullRequest) erro
 // GetOpenPullRequestByRefs fetches the the pull request associated with the supplied
 // refs. GitHub only allows one open PR by ref at a time.
 // If nothing is found an error is returned.
-func (c *Client) GetOpenPullRequestByRefs(ctx context.Context, owner, name, baseRef, headRef string) (*PullRequest, error) {
+func (c *GraphQLClient) GetOpenPullRequestByRefs(ctx context.Context, owner, name, baseRef, headRef string) (*PullRequest, error) {
 	var q strings.Builder
 	q.WriteString(pullRequestFragments)
 	q.WriteString("query {\n")
@@ -744,7 +752,7 @@ func (c *Client) GetOpenPullRequestByRefs(ctx context.Context, owner, name, base
 		}
 	}
 
-	err := c.requestGraphQL(ctx, q.String(), nil, &results)
+	err := c.request(ctx, q.String(), nil, &results)
 	if err != nil {
 		return nil, err
 	}

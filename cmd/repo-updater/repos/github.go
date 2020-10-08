@@ -33,6 +33,7 @@ type GithubSource struct {
 	githubDotCom    bool
 	baseURL         *url.URL
 	client          *github.Client
+	graphqlClient   *github.GraphQLClient
 	// searchClient is for using the GitHub search API, which has an independent
 	// rate limit much lower than non-search API requests.
 	searchClient *github.Client
@@ -114,6 +115,7 @@ func newGithubSource(svc *ExternalService, c *schema.GitHubConnection, cf *httpc
 		baseURL:          baseURL,
 		githubDotCom:     githubDotCom,
 		client:           github.NewClient(apiURL, c.Token, cli),
+		graphqlClient:    github.NewGraphQLClient(apiURL, c.Token, cli),
 		searchClient:     github.NewClient(apiURL, c.Token, cli),
 		originalHostname: originalHostname,
 	}, nil
@@ -158,7 +160,7 @@ func (s GithubSource) CreateChangeset(ctx context.Context, c *Changeset) (bool, 
 	var exists bool
 	repo := c.Repo.Metadata.(*github.Repository)
 
-	pr, err := s.client.CreatePullRequest(ctx, &github.CreatePullRequestInput{
+	pr, err := s.graphqlClient.CreatePullRequest(ctx, &github.CreatePullRequestInput{
 		RepositoryID: repo.ID,
 		Title:        c.Title,
 		Body:         c.Body,
@@ -174,7 +176,7 @@ func (s GithubSource) CreateChangeset(ctx context.Context, c *Changeset) (bool, 
 		if err != nil {
 			return exists, errors.Wrap(err, "getting repo owner and name")
 		}
-		pr, err = s.client.GetOpenPullRequestByRefs(ctx, owner, name, c.BaseRef, c.HeadRef)
+		pr, err = s.graphqlClient.GetOpenPullRequestByRefs(ctx, owner, name, c.BaseRef, c.HeadRef)
 		if err != nil {
 			return exists, errors.Wrap(err, "fetching existing PR")
 		}
@@ -196,7 +198,7 @@ func (s GithubSource) CloseChangeset(ctx context.Context, c *Changeset) error {
 		return errors.New("Changeset is not a GitHub pull request")
 	}
 
-	err := s.client.ClosePullRequest(ctx, pr)
+	err := s.graphqlClient.ClosePullRequest(ctx, pr)
 	if err != nil {
 		return err
 	}
@@ -222,7 +224,7 @@ func (s GithubSource) LoadChangesets(ctx context.Context, cs ...*Changeset) erro
 		}
 	}
 
-	err := s.client.LoadPullRequests(ctx, prs...)
+	err := s.graphqlClient.LoadPullRequests(ctx, prs...)
 	if err != nil {
 		return err
 	}
@@ -243,7 +245,7 @@ func (s GithubSource) UpdateChangeset(ctx context.Context, c *Changeset) error {
 		return errors.New("Changeset is not a GitHub pull request")
 	}
 
-	updated, err := s.client.UpdatePullRequest(ctx, &github.UpdatePullRequestInput{
+	updated, err := s.graphqlClient.UpdatePullRequest(ctx, &github.UpdatePullRequestInput{
 		PullRequestID: pr.ID,
 		Title:         c.Title,
 		Body:          c.Body,
@@ -266,7 +268,7 @@ func (s GithubSource) ReopenChangeset(ctx context.Context, c *Changeset) error {
 		return errors.New("Changeset is not a GitHub pull request")
 	}
 
-	err := s.client.ReopenPullRequest(ctx, pr)
+	err := s.graphqlClient.ReopenPullRequest(ctx, pr)
 	if err != nil {
 		return err
 	}
