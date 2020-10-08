@@ -39,6 +39,9 @@
     "last 1 Chrome versions",
     "not IE > 0"
   ],
+  "browser": {
+    "path": "path-browserify"
+  },
   "nyc": {
     "extends": "@istanbuljs/nyc-config-typescript",
     "all": true,
@@ -89,7 +92,6 @@
     "@pollyjs/core": "^5.0.0",
     "@pollyjs/persister-fs": "^5.0.0",
     "@slack/web-api": "^5.10.0",
-    "@sourcegraph/babel-plugin-transform-react-hot-loader-wrapper": "^1.0.0",
     "@sourcegraph/eslint-config": "^0.20.8",
     "@sourcegraph/prettierrc": "^3.0.3",
     "@sourcegraph/stylelint-config": "^1.1.9",
@@ -144,7 +146,6 @@
     "@types/react-circular-progressbar": "1.0.2",
     "@types/react-dom": "16.9.8",
     "@types/react-grid-layout": "0.17.2",
-    "@types/react-hot-loader": "4.1.0",
     "@types/react-router": "5.1.8",
     "@types/react-router-dom": "5.1.5",
     "@types/react-stripe-elements": "6.0.4",
@@ -189,6 +190,7 @@
     "enzyme": "^3.11.0",
     "enzyme-adapter-react-16": "^1.15.4",
     "enzyme-to-json": "^3.5.0",
+    "esbuild": "^0.7.12",
     "eslint": "^7.8.1",
     "eslint-formatter-lsif": "^1.0.3",
     "execa": "^4.0.2",
@@ -225,7 +227,6 @@
     "puppeteer-firefox": "^0.5.1",
     "raw-loader": "^4.0.1",
     "react-docgen-typescript-webpack-plugin": "^1.1.0",
-    "react-hot-loader": "^4.12.21",
     "react-test-renderer": "^16.13.1",
     "sass": "^1.26.10",
     "sass-loader": "^9.0.3",
@@ -256,7 +257,6 @@
     "yarn-deduplicate": "^2.1.1"
   },
   "dependencies": {
-    "@hot-loader/react-dom": "^16.13.0",
     "@primer/octicons-react": "^9.6.0",
     "@reach/accordion": "^0.10.2",
     "@reach/listbox": "^0.10.1",
@@ -294,10 +294,11 @@
     "monaco-editor": "^0.18.1",
     "nice-ticks": "^1.0.1",
     "open-color": "^1.7.0",
+    "path-browserify": "^1.0.1",
     "pretty-bytes": "^5.3.0",
     "react": "^16.13.1",
     "react-circular-progressbar": "^2.0.3",
-    "react-dom": "npm:@hot-loader/react-dom@^16.13.0",
+    "react-dom": "^16.13.0",
     "react-dom-confetti": "^0.1.4",
     "react-grid-layout": "^0.18.3",
     "react-router": "^5.2.0",
