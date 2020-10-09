@@ -1232,11 +1232,15 @@ func ProcessAndOr(in string, options ParserOptions) (QueryInfo, error) {
 		}
 	}
 
-	err = validate(query)
-	if err != nil {
-		return nil, err
+	disjuncts := Dnf(query)
+	if len(disjuncts) > 1 && containsField(query, FieldStable) {
+		return nil, errors.New("the stable parameter is not supported for complex search expressions")
 	}
-	query = concatRevFilters(query)
-
+	for _, disjunct := range disjuncts {
+		err = validate(disjunct)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &AndOrQuery{Query: query}, nil
 }
