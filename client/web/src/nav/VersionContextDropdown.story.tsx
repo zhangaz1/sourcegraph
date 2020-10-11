@@ -10,7 +10,7 @@ import { SearchPatternType } from '../graphql-operations'
 const { add } = storiesOf('web/VersionContextDropdown', module).addDecorator(story => (
     <>
         <style>{webMainStyles}</style>
-        <div className="theme-light">{story()}</div>
+        <div>{story()}</div>
     </>
 ))
 
@@ -19,7 +19,6 @@ const history = H.createMemoryHistory({ keyLength: 0 })
 const commonProps = subtypeOf<Partial<VersionContextDropdownProps>>()({
     alwaysShow: true,
     history,
-    // Make sure the dropdown is not rendered outside the theme-light container
     portal: false,
     caseSensitive: false,
     patternType: SearchPatternType.literal,
