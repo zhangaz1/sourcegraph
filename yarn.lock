@@ -2728,8 +2728,7 @@
   integrity sha512-KWxkyphmlwam8kfYPSmoitKQRMGQCsr1ZRmNZgijT7ABKaVyk/+I5ezt2J213tM04Hi0vyg4L7iH1VCkNvm2Jw==
 
 "@sourcegraph/extension-api-types@link:client/packages/@sourcegraph/extension-api-types":
-  version "0.0.0"
-  uid ""
+  version "2.1.0"
 
 "@sourcegraph/prettierrc@^3.0.3":
   version "3.0.3"
@@ -4542,10 +4541,10 @@
   resolved "https://registry.npmjs.org/@types/unist/-/unist-2.0.3.tgz#9c088679876f374eb5983f150d4787aa6fb32d7e"
   integrity sha512-FvUupuM3rlRsRtCN+fDudtmytGO6iHJuuRKS1Ss0pG5z8oX0diNEw94UEL7hgDbpN94rgaK5R7sWm6RrSkZuAQ==
 
-"@types/uuid@8.0.1":
-  version "8.0.1"
-  resolved "https://registry.npmjs.org/@types/uuid/-/uuid-8.0.1.tgz#42958a1a880640b139eea97a1640e1a3f61016d2"
-  integrity sha512-2kE8rEFgJpbBAPw5JghccEevQb0XVU0tewF/8h7wPQTeCtoJ6h8qmBIwuzUVm2MutmzC/cpCkwxudixoNYDp1A==
+"@types/uuid@8.3.0":
+  version "8.3.0"
+  resolved "https://registry.npmjs.org/@types/uuid/-/uuid-8.3.0.tgz#215c231dff736d5ba92410e6d602050cce7e273f"
+  integrity sha512-eQ9qFW/fhfGJF8WKHGEHZEyVWfZxrT+6CLIJGBcZPfxUh/+BnEj+UCGYMlr9qZuX/2AltsvwrGqp0LhEW8D0zQ==
 
 "@types/vinyl-fs@*":
   version "2.4.9"
@@ -20933,8 +20932,7 @@ sourcegraph@^24.0.0:
   integrity sha512-PlGvkdBy5r5iHdKAVNY/jsPgWb3oY+2iAdIQ3qR83UHhvBFVgoctDAnyfJ1eMstENY3etBWtAJ8Kleoar3ecaA==
 
 "sourcegraph@link:client/packages/sourcegraph-extension-api":
-  version "0.0.0"
-  uid ""
+  version "24.7.0"
 
 space-separated-tokens@^1.0.0:
   version "1.1.2"
@@ -22978,7 +22976,7 @@ uuid@^7.0.3:
   resolved "https://registry.npmjs.org/uuid/-/uuid-7.0.3.tgz#c5c9f2c8cf25dc0a372c4df1441c41f5bd0c680b"
   integrity sha512-DPSke0pXhTZgoF/d+WSt2QaKMCFSfx7QegxEWT+JOuHF5aWrKEn0G+ztjuJg/gG8/ItK+rbPCD/yNv8yyih6Cg==
 
-uuid@^8.0.0, uuid@^8.3.0:
+uuid@^8.0.0, uuid@^8.3.1:
   version "8.3.1"
   resolved "https://registry.npmjs.org/uuid/-/uuid-8.3.1.tgz#2ba2e6ca000da60fce5a196954ab241131e05a31"
   integrity sha512-FOmRr+FmWEIG8uhZv6C2bTgEVXsHk08kE7mPlrBbEe+c3r9pjceVPgupIfNIhc4yx55H69OXANrUaSuu9eInKg==
