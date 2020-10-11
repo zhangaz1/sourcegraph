@@ -95,7 +95,7 @@
     "@sourcegraph/stylelint-config": "^1.1.9",
     "@sourcegraph/tsconfig": "^4.0.1",
     "@storybook/addon-actions": "^6.0.26",
-    "@storybook/addon-console": "^1.2.1",
+    "@storybook/addon-console": "^1.2.2",
     "@storybook/addon-knobs": "^6.0.26",
     "@storybook/addon-links": "^6.0.26",
     "@storybook/addon-options": "^5.3.19",
