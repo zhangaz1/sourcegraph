@@ -14,6 +14,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/bundles/types"
 	"github.com/sourcegraph/sourcegraph/internal/db/basestore"
+	"github.com/sourcegraph/sourcegraph/internal/db/dbutil"
 )
 
 type printableRank struct{ value *int }
@@ -217,7 +218,15 @@ func insertNearestUploads(t *testing.T, db *sql.DB, repositoryID int, uploads ma
 	var rows []*sqlf.Query
 	for commit, metas := range uploads {
 		for _, meta := range metas {
-			rows = append(rows, sqlf.Sprintf("(%s, %s, %s, %s, %s, %s)", repositoryID, commit, meta.UploadID, meta.Distance, meta.AncestorVisible, meta.Overwritten))
+			rows = append(rows, sqlf.Sprintf(
+				"(%s, %s, %s, %s, %s, %s)",
+				repositoryID,
+				dbutil.Commit(commit),
+				meta.UploadID,
+				meta.Distance,
+				meta.AncestorVisible,
+				meta.Overwritten,
+			))
 		}
 	}
 
@@ -255,14 +264,14 @@ func scanVisibleUploads(rows *sql.Rows, queryErr error) (_ map[string][]UploadMe
 
 	uploadMeta := map[string][]UploadMeta{}
 	for rows.Next() {
-		var commit string
+		var commit dbutil.Commit
 		var uploadID int
 		var distance int
 		if err := rows.Scan(&commit, &uploadID, &distance); err != nil {
 			return nil, err
 		}
 
-		uploadMeta[commit] = append(uploadMeta[commit], UploadMeta{
+		uploadMeta[string(commit)] = append(uploadMeta[string(commit)], UploadMeta{
 			UploadID: uploadID,
 			Distance: distance,
 		})

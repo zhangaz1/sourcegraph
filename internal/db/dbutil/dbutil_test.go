@@ -1,6 +1,8 @@
 package dbutil
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestPostgresDSN(t *testing.T) {
 	cases := []struct {

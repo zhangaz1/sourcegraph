@@ -98,6 +98,8 @@
 // 1528395731_add_nearest_upload_direction.up.sql (510B)
 // 1528395732_add_external_services_sync_jobs_state_index.down.sql (76B)
 // 1528395732_add_external_services_sync_jobs_state_index.up.sql (120B)
+// 1528395733_compressed_commits.down.sql (122B)
+// 1528395733_compressed_commits.up.sql (123B)
 
 package migrations
 
@@ -2126,6 +2128,46 @@ func _1528395732_add_external_services_sync_jobs_state_indexUpSql() (*asset, err
 	return a, nil
 }
 
+var __1528395733_compressed_commitsDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x72\x75\xf7\xf4\xb3\xe6\xe2\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\xc8\x29\xce\x4c\x8b\xcf\x4b\x4d\x2c\x4a\x2d\x2e\x89\x2f\x2d\xc8\xc9\x4f\x4c\x29\x56\x80\x28\x70\xf6\xf7\x09\xf5\xf5\x53\x50\x4a\xce\xcf\xcd\xcd\x2c\x51\x52\x08\x76\x0d\x51\x70\x71\x0c\x71\x54\x08\x89\x0c\x70\x55\x28\x49\xad\x28\x51\x08\x0d\xf6\xf4\x73\x57\x48\xcd\x4b\xce\x4f\x49\xd5\x80\x29\xd4\x51\x50\xcf\x48\xad\x50\xd7\xb4\xe6\xe2\x72\xf6\xf7\xf5\xf5\x0c\xb1\xe6\x02\x04\x00\x00\xff\xff\x00\x75\x3f\x4d\x7a\x00\x00\x00")
+
+func _1528395733_compressed_commitsDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__1528395733_compressed_commitsDownSql,
+		"1528395733_compressed_commits.down.sql",
+	)
+}
+
+func _1528395733_compressed_commitsDownSql() (*asset, error) {
+	bytes, err := _1528395733_compressed_commitsDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "1528395733_compressed_commits.down.sql", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0x1a, 0x3, 0x48, 0x1b, 0x9d, 0x9f, 0xe4, 0xd, 0xe2, 0xcd, 0xe5, 0x7, 0x27, 0x16, 0x24, 0xb6, 0x55, 0xde, 0xed, 0xc1, 0x6a, 0x54, 0x85, 0x71, 0xc0, 0x14, 0x70, 0xe7, 0x7b, 0x65, 0x28, 0x8a}}
+	return a, nil
+}
+
+var __1528395733_compressed_commitsUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x72\x75\xf7\xf4\xb3\xe6\xe2\x72\xf4\x09\x71\x0d\x52\x08\x71\x74\xf2\x71\x55\xc8\x29\xce\x4c\x8b\xcf\x4b\x4d\x2c\x4a\x2d\x2e\x89\x2f\x2d\xc8\xc9\x4f\x4c\x29\x56\x80\x28\x70\xf6\xf7\x09\xf5\xf5\x53\x50\x4a\xce\xcf\xcd\xcd\x2c\x51\x52\x08\x76\x0d\x51\x70\x71\x0c\x71\x54\x08\x89\x0c\x70\x55\x48\xaa\x2c\x49\x4d\x54\x08\x0d\xf6\xf4\x73\x57\x48\x49\x4d\xce\x4f\x49\xd5\x80\xa9\xd4\x51\x50\xcf\x48\xad\x50\xd7\xb4\xe6\xe2\x72\xf6\xf7\xf5\xf5\x0c\xb1\xe6\x02\x04\x00\x00\xff\xff\x1e\x55\x0e\x89\x7b\x00\x00\x00")
+
+func _1528395733_compressed_commitsUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__1528395733_compressed_commitsUpSql,
+		"1528395733_compressed_commits.up.sql",
+	)
+}
+
+func _1528395733_compressed_commitsUpSql() (*asset, error) {
+	bytes, err := _1528395733_compressed_commitsUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "1528395733_compressed_commits.up.sql", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0x66, 0x2a, 0x61, 0xea, 0xc7, 0xa6, 0x63, 0xc4, 0x29, 0xdc, 0x6f, 0x59, 0x8c, 0xef, 0xe2, 0x63, 0xb, 0x75, 0xb2, 0x93, 0x5, 0x27, 0x3, 0xe6, 0x8, 0xbc, 0xde, 0x70, 0x6e, 0x9f, 0xa8, 0x1e}}
+	return a, nil
+}
+
 // Asset loads and returns the asset for the given name.
 // It returns an error if the asset could not be found or
 // could not be loaded.
@@ -2315,6 +2357,8 @@ var _bindata = map[string]func() (*asset, error){
 	"1528395731_add_nearest_upload_direction.up.sql":                               _1528395731_add_nearest_upload_directionUpSql,
 	"1528395732_add_external_services_sync_jobs_state_index.down.sql":              _1528395732_add_external_services_sync_jobs_state_indexDownSql,
 	"1528395732_add_external_services_sync_jobs_state_index.up.sql":                _1528395732_add_external_services_sync_jobs_state_indexUpSql,
+	"1528395733_compressed_commits.down.sql":                                       _1528395733_compressed_commitsDownSql,
+	"1528395733_compressed_commits.up.sql":                                         _1528395733_compressed_commitsUpSql,
 }
 
 // AssetDebug is true if the assets were built with the debug flag enabled.
@@ -2459,6 +2503,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"1528395731_add_nearest_upload_direction.up.sql":                               {_1528395731_add_nearest_upload_directionUpSql, map[string]*bintree{}},
 	"1528395732_add_external_services_sync_jobs_state_index.down.sql":              {_1528395732_add_external_services_sync_jobs_state_indexDownSql, map[string]*bintree{}},
 	"1528395732_add_external_services_sync_jobs_state_index.up.sql":                {_1528395732_add_external_services_sync_jobs_state_indexUpSql, map[string]*bintree{}},
+	"1528395733_compressed_commits.down.sql":                                       {_1528395733_compressed_commitsDownSql, map[string]*bintree{}},
+	"1528395733_compressed_commits.up.sql":                                         {_1528395733_compressed_commitsUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory.

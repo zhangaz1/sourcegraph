@@ -7,6 +7,7 @@ import (
 
 	"github.com/keegancsmith/sqlf"
 	"github.com/sourcegraph/sourcegraph/internal/db/basestore"
+	"github.com/sourcegraph/sourcegraph/internal/db/dbutil"
 )
 
 // Dump is a subset of the lsif_uploads table (queried via the lsif_dumps_with_repository_name view)
@@ -139,7 +140,7 @@ func (s *store) FindClosestDumps(ctx context.Context, repositoryID int, commit, 
 			FROM lsif_nearest_uploads u
 			JOIN lsif_dumps_with_repository_name d ON d.id = u.upload_id
 			WHERE u.repository_id = %s AND u.commit = %s AND NOT u.overwritten AND %s
-		`, repositoryID, commit, sqlf.Join(conds, " AND ")),
+		`, repositoryID, dbutil.Commit(commit), sqlf.Join(conds, " AND ")),
 	))
 }
 
@@ -152,7 +153,7 @@ func (s *store) FindClosestDumpsFromGraphFragment(ctx context.Context, repositor
 
 	commits := make([]*sqlf.Query, 0, len(graph))
 	for commit := range graph {
-		commits = append(commits, sqlf.Sprintf("%s", commit))
+		commits = append(commits, sqlf.Sprintf("%s", dbutil.Commit(commit)))
 	}
 
 	uploadMeta, err := scanUploadMeta(s.Store.Query(ctx, sqlf.Sprintf(`

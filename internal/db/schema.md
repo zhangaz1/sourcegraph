@@ -629,7 +629,7 @@ Check constraints:
       Column      |  Type   | Modifiers 
 ------------------+---------+-----------
  repository_id    | integer | not null
- commit           | text    | not null
+ commit           | bytea   | not null
  upload_id        | integer | not null
  distance         | integer | not null
  ancestor_visible | boolean | not null

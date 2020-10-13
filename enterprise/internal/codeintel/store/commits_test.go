@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"testing"
@@ -9,7 +10,40 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/sourcegraph/sourcegraph/internal/db/dbconn"
 	"github.com/sourcegraph/sourcegraph/internal/db/dbtesting"
+	"github.com/sourcegraph/sourcegraph/internal/db/dbutil"
 )
+
+func TestCommitSanity(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	dbtesting.SetupGlobalTestDB(t)
+
+	// This test documents the assumption that:
+	//
+	// - decode(v, 'hex') = hex.Decode(v), and
+	// - encode(v, 'hex') = hex.EncodeToString(v).
+
+	var decodedValue dbutil.Commit
+	if err := dbconn.Global.QueryRow("SELECT decode('deadbeef', 'hex')").Scan(&decodedValue); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if decodedValue != "deadbeef" {
+		t.Errorf("unexpected decoded value. want=%q have=%q", "deadbeef", decodedValue)
+	}
+
+	data, err := hex.DecodeString("deadbeef")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if err := dbconn.Global.QueryRow("SELECT $1::bytea", data).Scan(&decodedValue); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if decodedValue != "deadbeef" {
+		t.Errorf("unexpected encoded value. want=%q have=%q", "deadbeef", decodedValue)
+	}
+}
 
 func TestHasRepository(t *testing.T) {
 	if testing.Short() {

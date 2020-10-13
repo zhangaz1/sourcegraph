@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -384,6 +385,28 @@ func (n *NullJSONRawMessage) Scan(value interface{}) error {
 	}
 
 	return nil
+}
+
+// Commit represents a hex-encoded string that is efficiently encoded in Postgres and should be used
+// in place of a text or varchar type when the table is large (e.g. a row per commit of a repo).
+type Commit string
+
+// Scan implements the Scanner interface.
+func (c *Commit) Scan(value interface{}) error {
+	switch value := value.(type) {
+	case nil:
+	case []byte:
+		*c = Commit(hex.EncodeToString(value))
+	default:
+		return fmt.Errorf("value is not []byte: %T", value)
+	}
+
+	return nil
+}
+
+// Value implements the driver Valuer interface.
+func (c Commit) Value() (driver.Value, error) {
+	return hex.DecodeString(string(c))
 }
 
 // Value implements the driver Valuer interface.

@@ -7,6 +7,7 @@ import (
 	"github.com/keegancsmith/sqlf"
 	"github.com/sourcegraph/sourcegraph/internal/db/basestore"
 	"github.com/sourcegraph/sourcegraph/internal/db/batch"
+	"github.com/sourcegraph/sourcegraph/internal/db/dbutil"
 )
 
 // scanUploadMeta scans upload metadata grouped by commit from the return value of `*store.query`.
@@ -18,13 +19,13 @@ func scanUploadMeta(rows *sql.Rows, queryErr error) (_ map[string][]UploadMeta, 
 
 	uploadMeta := map[string][]UploadMeta{}
 	for rows.Next() {
-		var commit string
+		var commit dbutil.Commit
 		var upload UploadMeta
 		if err := rows.Scan(&upload.UploadID, &commit, &upload.Root, &upload.Indexer, &upload.Distance, &upload.AncestorVisible, &upload.Overwritten); err != nil {
 			return nil, err
 		}
 
-		uploadMeta[commit] = append(uploadMeta[commit], upload)
+		uploadMeta[string(commit)] = append(uploadMeta[string(commit)], upload)
 	}
 
 	return uploadMeta, nil
@@ -49,7 +50,7 @@ func (s *store) HasCommit(ctx context.Context, repositoryID int, commit string) 
 		FROM lsif_nearest_uploads
 		WHERE repository_id = %s AND commit = %s AND NOT overwritten
 		LIMIT 1
-	`, repositoryID, commit)))
+	`, repositoryID, dbutil.Commit(commit))))
 
 	return count > 0, err
 }
@@ -109,7 +110,7 @@ func (s *store) CalculateVisibleUploads(ctx context.Context, repositoryID int, g
 	// Pull all queryable upload metadata known to this repository so we can correlate
 	// it with the current  commit graph.
 	uploadMeta, err := scanUploadMeta(tx.Store.Query(ctx, sqlf.Sprintf(`
-		SELECT id, commit, root, indexer, 0 as distance, true as ancestor_visible, false as overwritten
+		SELECT id, decode(commit, 'hex'), root, indexer, 0 as distance, true as ancestor_visible, false as overwritten
 		FROM lsif_uploads
 		WHERE state = 'completed' AND repository_id = %s
 	`, repositoryID)))
@@ -149,7 +150,7 @@ func (s *store) CalculateVisibleUploads(ctx context.Context, repositoryID int, g
 			if err := nearestUploadsInserter.Insert(
 				ctx,
 				repositoryID,
-				commit,
+				dbutil.Commit(commit),
 				uploadMeta.UploadID,
 				uploadMeta.Distance,
 				uploadMeta.AncestorVisible,
