@@ -45,6 +45,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         g.use_private_ip = use_private_ip
         g.disk_size = 20
         g.disk_type = 'pd-ssd'
+        g.scopes = ['default']
+        g.service_account = '487330148195-compute@developer.gserviceaccount.com'
         o.ssh.username = username
         o.ssh.private_key_path = ssh_key_path
       end

@@ -26,8 +26,8 @@ fi
 # docker run pulls image if not found locally
 IMAGE=${IMAGE:-sourcegraph/server:${TAG:-insiders}}
 echo "starting server ${IMAGE}"
-docker run "$@" \
-  --publish 7080:7080 \
+docker run -d "$@" \
+  --publish 3080:7080 \
   --rm \
   -e SRC_LOG_LEVEL=dbug \
   -e DEBUG=t \
