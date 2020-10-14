@@ -1,0 +1,7 @@
+steps:
+  - command:
+    - .buildkite/test.sh sourcegraph-code-intel || true
+  timeout_in_minutes: 20
+  label: ':docker::arrow_right::chromium:'
+  agents:
+    queue: 'baremetal'
