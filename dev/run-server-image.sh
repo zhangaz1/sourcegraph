@@ -27,7 +27,7 @@ fi
 IMAGE=${IMAGE:-sourcegraph/server:${TAG:-insiders}}
 echo "starting server ${IMAGE}"
 docker run -d "$@" \
-  --publish 3080:7080 \
+  --publish 7080:7080 \
   --rm \
   -e SRC_LOG_LEVEL=dbug \
   -e DEBUG=t \

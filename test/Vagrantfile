@@ -26,12 +26,15 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         use_private_ip = server['use_private_ip']
         username = server['username']
         ssh_key_path = server['ssh_key_path']
+        service_account = server['service_account']
       else
         project_id = ENV['VAGRANT_GCP_PROJECT_ID'] || 'sourcegraph-server'
         external_ip = nil
         use_private_ip = false
         username = ENV['VAGRANT_SSH_USER'] || ENV['USER']
         ssh_key_path = ENV['VAGRANT_SSH_KEY'] || '~/.ssh/id_rsa'
+        service_account = '487330148195-compute@developer.gserviceaccount.com'
+
       end
 
       srv.vm.provider :google do |g, o|
@@ -45,8 +48,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         g.use_private_ip = use_private_ip
         g.disk_size = 20
         g.disk_type = 'pd-ssd'
+        g.service_account = service_account
         g.scopes = ['default']
-        g.service_account = '487330148195-compute@developer.gserviceaccount.com'
         o.ssh.username = username
         o.ssh.private_key_path = ssh_key_path
       end

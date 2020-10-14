@@ -7,6 +7,7 @@
   use_private_ip: true
   network: default
   username: buildkite
+  service_account: "buildkite@sourcegraph-ci.iam.gserviceaccount.com"
   ssh_key_path: "~/.ssh/id_rsa"
   shell_commands:
     - |
@@ -35,3 +36,5 @@
   ssh_key_path: "~/.ssh/id_rsa"
   shell_commands:
     - |
+       cd /sourcegraph
+       ./test/code_intel/test.sh
