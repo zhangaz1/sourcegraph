@@ -359,3 +359,7 @@ func zoektSearchHEADOnlyFiles(ctx context.Context, args *search.TextParameters, 
 
 	return matches, limitHit, reposLimitHit, nil
 }
+
+func searchFilesInReposStructural(ctx context.Context, args *search.TextParameters) (res []*FileMatchResolver, common *searchResultsCommon, err error) {
+	return nil, nil, nil
+}
