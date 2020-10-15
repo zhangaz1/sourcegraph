@@ -31,6 +31,7 @@ func (args Args) String() string {
 		s = append(s, "-matcher", args.Matcher)
 	}
 
+	s = append(s, "-rg", `-g '*.go'`)
 	switch i := args.Input.(type) {
 	case ZipPath:
 		s = append(s, "-zip", string(i))
