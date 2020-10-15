@@ -172,12 +172,6 @@ func newIndexedSearchRequest(ctx context.Context, args *search.TextParameters, t
 		log.Int("searcher_repos.size", len(searcherRepos)),
 	)
 
-	// We do not yet support searching non-HEAD for fileRequest (structural
-	// search).
-	if typ == fileRequest && indexed.NotHEADOnlySearch {
-		return nil, errors.New("structural search only supports searching the default branch https://github.com/sourcegraph/sourcegraph/issues/11906")
-	}
-
 	return &indexedSearchRequest{
 		args: args,
 		typ:  typ,
@@ -726,12 +720,6 @@ type indexedRepoRevs struct {
 	//
 	//  repoBranches[reporev.Repo.Name][i] <-> reporev.Revs[i]
 	repoBranches map[string][]string
-
-	// NotHEADOnlySearch is true if we are searching a branch other than HEAD.
-	//
-	// This option can be removed once structural search supports searching
-	// more than HEAD.
-	NotHEADOnlySearch bool
 }
 
 // headBranch is used as a singleton of the indexedRepoRevs.repoBranches to save
@@ -764,10 +752,6 @@ func (rb *indexedRepoRevs) Add(reporev *search.RepositoryRevisions, repo *zoekt.
 		return nil
 	}
 
-	// notHEADOnlySearch is set to true if we search any branch other than
-	// repo.Branches[0]
-	notHEADOnlySearch := false
-
 	// Assume for large searches they will mostly involve indexed
 	// revisions, so just allocate that.
 	var unindexed []search.RevisionSpecifier
@@ -783,17 +767,15 @@ func (rb *indexedRepoRevs) Add(reporev *search.RepositoryRevisions, repo *zoekt.
 		}
 
 		found := false
-		for i, branch := range repo.Branches {
+		for _, branch := range repo.Branches {
 			if branch.Name == rev.RevSpec {
 				branches = append(branches, branch.Name)
-				notHEADOnlySearch = notHEADOnlySearch || i > 0
 				found = true
 				break
 			}
 			// Check if rev is an abbrev commit SHA
 			if len(rev.RevSpec) >= 4 && strings.HasPrefix(branch.Version, rev.RevSpec) {
 				branches = append(branches, branch.Name)
-				notHEADOnlySearch = notHEADOnlySearch || i > 0
 				found = true
 				break
 			}
@@ -810,7 +792,6 @@ func (rb *indexedRepoRevs) Add(reporev *search.RepositoryRevisions, repo *zoekt.
 	if len(indexed) > 0 {
 		rb.repoRevs[string(reporev.Repo.Name)] = reporev
 		rb.repoBranches[string(reporev.Repo.Name)] = branches
-		rb.NotHEADOnlySearch = rb.NotHEADOnlySearch || notHEADOnlySearch
 	}
 
 	return unindexed
