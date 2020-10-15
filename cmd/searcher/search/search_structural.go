@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -241,16 +240,12 @@ func Unzip(src string, dest string) ([]string, error) {
 }
 
 func extract(zipPath string) (string, error) {
-	extractDir, err := ioutil.TempDir("", "zippity-doo-da")
-	if err != nil {
-		log15.Info("err0", "XXX", err.Error())
-		return "", err
+	extractDir := filepath.Join(os.TempDir(), zipPath)
+	err := os.Mkdir(extractDir, 0700)
+	if os.IsNotExist(err) {
+		os.Mkdir(extractDir, 0700)
 	}
 	log15.Info("extractDir", "XXX", extractDir)
-	if err != nil {
-		log15.Info("err1", "XXX", err.Error())
-		return "", err
-	}
 	_, err = Unzip(zipPath, extractDir)
 	if err != nil {
 		log15.Info("err2", "XXX", err.Error())
