@@ -393,7 +393,7 @@ func buildQueryReposOnly(args *search.TextParameters, repos *indexedRepoRevs, fi
 		}), nil
 }
 
-func successRepos(ctx context.Context, args *search.TextParameters, repos *indexedRepoRevs) (*zoekt.RepoList, error) {
+func successRepos(ctx context.Context, args *search.TextParameters, repos *indexedRepoRevs) (*zoekt.SearchResult, error) {
 	filePathPatterns, err := HandleFilePathPatterns(args.PatternInfo)
 	if err != nil {
 		return nil, err
@@ -402,7 +402,10 @@ func successRepos(ctx context.Context, args *search.TextParameters, repos *index
 	if err != nil {
 		return nil, err
 	}
-	successRepos, err := args.Zoekt.Client.List(ctx, q)
+	successRepos, err := args.Zoekt.Client.Search(ctx, q, &zoekt.SearchOptions{
+		ShardMaxMatchCount: 1,
+		TotalMaxMatchCount: 1,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -585,6 +588,11 @@ func searchFilesInReposStructural(ctx context.Context, args *search.TextParamete
 		return nil
 	} // ends callSearcherOverRepos
 
+	for repo, _ := range matchingIndexedRepos.RepoURLs {
+		log15.Info("indexed", "repo", repo)
+		// Just doing this: https://sourcegraph.com/github.com/sourcegraph/sourcegraph/-/blob/cmd/frontend/graphqlbackend/search_structural.go#L347. I don't understand why it is this way.
+		searcherRepos = append(searcherRepos, indexed.repos.repoRevs[repo])
+	}
 	if err := callSearcherOverRepos(searcherRepos); err != nil {
 		mu.Lock()
 		searchErr = err
