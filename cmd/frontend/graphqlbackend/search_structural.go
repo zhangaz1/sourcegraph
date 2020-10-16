@@ -438,6 +438,11 @@ func searchFilesInReposStructural(ctx context.Context, args *search.TextParamete
 
 	tr.LazyPrintf("%d indexed repos, %d unindexed repos", len(indexed.Repos()), len(indexed.Unindexed))
 
+	matchingIndexedRepos, err := successRepos(ctx, args, indexed.repos)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	var searcherRepos []*search.RepositoryRevisions
 	if indexed.DisableUnindexedSearch {
 		tr.LazyPrintf("disabling unindexed search")
@@ -453,11 +458,6 @@ func searchFilesInReposStructural(ctx context.Context, args *search.TextParamete
 		if len(common.missing) > 0 {
 			tr.LazyPrintf("limiting unindexed repos searched to %d", maxUnindexedRepoRevSearchesPerQuery)
 		}
-	}
-
-	finalRepos, err := successRepos(ctx, args, indexed.repos)
-	if err != nil {
-		return nil, nil, err
 	}
 
 	var (
@@ -584,46 +584,6 @@ func searchFilesInReposStructural(ctx context.Context, args *search.TextParamete
 		} // ends the for loop iterating over repos
 		return nil
 	} // ends callSearcherOverRepos
-
-	if args.Mode != search.SearcherOnly {
-		wg.Add(1)
-		go func() {
-			// TODO limitHit, handleRepoSearchResult
-			defer wg.Done()
-			matches, limitHit, reposLimitHit, err := indexed.Search(ctx)
-			mu.Lock()
-			defer mu.Unlock()
-			if ctx.Err() == nil {
-				for _, repo := range indexed.Repos() {
-					common.searched = append(common.searched, repo.Repo)
-					common.indexed = append(common.indexed, repo.Repo)
-				}
-				for repo := range reposLimitHit {
-					// Repos that aren't included in the result set due to exceeded limits are partially searched
-					// for dynamic filter purposes. Note, reposLimitHit may include repos that did not have any results
-					// returned in the original result set, because indexed search has `limitHit` for the
-					// entire search rather than per repo as in non-indexed search.
-					common.partial[api.RepoName(repo)] = struct{}{}
-				}
-			}
-			if limitHit {
-				common.limitHit = true
-			}
-			if err == errNoResultsInTimeout {
-				// Effectively, all repositories have timed out.
-				for _, repo := range indexed.Repos() {
-					common.timedout = append(common.timedout, repo.Repo)
-				}
-			}
-			tr.LogFields(otlog.Error(err), otlog.Bool("overLimitCanceled", overLimitCanceled))
-			if err != nil && err != errNoResultsInTimeout && searchErr == nil && !overLimitCanceled {
-				searchErr = err
-				tr.LazyPrintf("cancel indexed search due to error: %v", err)
-				cancel()
-			}
-			addMatches(matches)
-		}()
-	}
 
 	if err := callSearcherOverRepos(searcherRepos); err != nil {
 		mu.Lock()
