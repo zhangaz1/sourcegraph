@@ -392,8 +392,9 @@ func searchFilesInReposStructural(ctx context.Context, args *search.TextParamete
 
 	common = &searchResultsCommon{partial: make(map[api.RepoName]struct{})}
 
+	// Use List instead
 	var indexed *indexedSearchRequest
-	indexed, err = newIndexedSearchRequest(ctx, args, fileRequest)
+	indexed, err = newIndexedSearchRequest(ctx, args, textRequest)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -418,13 +419,12 @@ func searchFilesInReposStructural(ctx context.Context, args *search.TextParamete
 	}
 
 	var (
-		// TODO: convert wg to an errgroup
 		wg                sync.WaitGroup
 		mu                sync.Mutex
 		searchErr         error
 		unflattened       [][]*FileMatchResolver
 		flattenedSize     int
-		overLimitCanceled bool // canceled because we were over the limit
+		overLimitCanceled bool
 	)
 
 	// addMatches assumes the caller holds mu.

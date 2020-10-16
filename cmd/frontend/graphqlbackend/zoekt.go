@@ -30,7 +30,6 @@ type indexedRequestType string
 const (
 	textRequest   indexedRequestType = "text"
 	symbolRequest indexedRequestType = "symbol"
-	fileRequest   indexedRequestType = "file"
 )
 
 // indexedSearchRequest is responsible for translating a Sourcegraph search
@@ -210,8 +209,6 @@ func (s *indexedSearchRequest) Search(ctx context.Context) (fm []*FileMatchResol
 		return zoektSearch(ctx, s.args, s.repos, s.typ, since)
 	case symbolRequest:
 		return zoektSearch(ctx, s.args, s.repos, s.typ, since)
-	case fileRequest:
-		return zoektSearchHEADOnlyFiles(ctx, s.args, s.repos, since)
 	default:
 		return nil, false, nil, fmt.Errorf("unexpected indexedSearchRequest type: %q", s.typ)
 	}
