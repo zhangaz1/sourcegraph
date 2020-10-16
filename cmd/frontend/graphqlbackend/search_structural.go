@@ -431,9 +431,7 @@ func searchFilesInReposStructural(ctx context.Context, args *search.TextParamete
 
 	common = &searchResultsCommon{partial: make(map[api.RepoName]struct{})}
 
-	// Use List instead
-	var indexed *indexedSearchRequest
-	indexed, err = newIndexedSearchRequest(ctx, args, textRequest)
+	indexed, err := newIndexedSearchRequest(ctx, args, textRequest)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -455,6 +453,11 @@ func searchFilesInReposStructural(ctx context.Context, args *search.TextParamete
 		if len(common.missing) > 0 {
 			tr.LazyPrintf("limiting unindexed repos searched to %d", maxUnindexedRepoRevSearchesPerQuery)
 		}
+	}
+
+	finalRepos, err := successRepos(ctx, args, indexed.repos)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	var (
