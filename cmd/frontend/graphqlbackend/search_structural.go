@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/google/zoekt"
 	zoektquery "github.com/google/zoekt/query"
 	"github.com/inconshreveable/log15"
 	otlog "github.com/opentracing/opentracing-go/log"
@@ -368,6 +369,44 @@ func zoektSearchHEADOnlyFiles(ctx context.Context, args *search.TextParameters, 
 	}
 
 	return matches, limitHit, reposLimitHit, nil
+}
+
+func buildQueryReposOnly(args *search.TextParameters, repos *indexedRepoRevs, filePathPatterns zoektquery.Q, shortcircuit bool) (zoektquery.Q, error) {
+	regexString := StructuralPatToRegexpQuery(args.PatternInfo.Pattern, shortcircuit)
+	if len(regexString) == 0 {
+		return &zoektquery.Const{Value: true}, nil
+	}
+	re, err := syntax.Parse(regexString, syntax.ClassNL|syntax.PerlX|syntax.UnicodeGroups)
+	if err != nil {
+		return nil, err
+	}
+	return zoektquery.NewAnd(
+		&zoektquery.RepoBranches{Set: repos.repoBranches},
+		filePathPatterns,
+		&zoektquery.Type{
+			Type: zoektquery.TypeRepo,
+			Child: &zoektquery.Regexp{
+				Regexp:        re,
+				CaseSensitive: true,
+				Content:       true,
+			},
+		}), nil
+}
+
+func successRepos(ctx context.Context, args *search.TextParameters, repos *indexedRepoRevs) (*zoekt.RepoList, error) {
+	filePathPatterns, err := HandleFilePathPatterns(args.PatternInfo)
+	if err != nil {
+		return nil, err
+	}
+	q, err := buildQueryReposOnly(args, repos, filePathPatterns, true)
+	if err != nil {
+		return nil, err
+	}
+	successRepos, err := args.Zoekt.Client.List(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	return successRepos, nil
 }
 
 // get repos from Zoekt with its regex search. In all other cases, call out to searcher.
