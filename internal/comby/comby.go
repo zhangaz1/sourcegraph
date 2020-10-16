@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -53,7 +54,7 @@ func rawArgs(args Args) (rawArgs []string) {
 	if len(args.FilePatterns) == 0 {
 		rawArgs = append(rawArgs, "-rg", `-g '*'`)
 	} else {
-		rawArgs = append(rawArgs, "-rg", `-g '*.go'`)
+		rawArgs = append(rawArgs, "-rg", fmt.Sprintf(`-g '*%s'`, strings.Join(args.FilePatterns, "|")))
 	}
 
 	switch i := args.Input.(type) {
@@ -65,6 +66,7 @@ func rawArgs(args Args) (rawArgs []string) {
 		log15.Error("unrecognized input type", "type", i)
 		panic("unreachable")
 	}
+	rawArgs = append(rawArgs, "-bound-count", "30")
 	return rawArgs
 }
 
