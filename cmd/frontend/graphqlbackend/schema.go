@@ -7224,9 +7224,59 @@ type LSIFIndex implements Node {
     failure: String
 
     """
+    TODO
+    """
+    dockerSteps: [DockerStep!]!
+
+    """
+    TODO
+    """
+    inputRoot: String!
+
+    """
+    TODO
+    """
+    indexer: String!
+
+    """
+    TODO
+    """
+    indexerArgs: [String!]!
+
+    """
+    TODO
+    """
+    outfile: String
+
+    """
+    TODO
+    """
+    logContents: String
+
+    """
     The rank of this index in the queue. The value of this field is null if the index has been processed.
     """
     placeInQueue: Int
+}
+
+"""
+TODO
+"""
+type DockerStep {
+    """
+    TODO
+    """
+    root: String!
+
+    """
+    TODO
+    """
+    image: String!
+
+    """
+    TODO
+    """
+    commands: [String!]!
 }
 
 """
