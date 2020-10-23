@@ -11,7 +11,6 @@ import (
 
 	"github.com/inconshreveable/log15"
 	"github.com/pkg/errors"
-	"github.com/sourcegraph/sourcegraph/cmd/frontend/types"
 	"github.com/sourcegraph/sourcegraph/cmd/repo-updater/repos"
 	"github.com/sourcegraph/sourcegraph/internal/api"
 	"github.com/sourcegraph/sourcegraph/internal/campaigns"
@@ -122,7 +121,7 @@ func (e *executor) ExecutePlan(ctx context.Context, plan *plan) (err error) {
 			return errors.Wrap(err, "failed to load associations")
 		}
 		// Set up a source with which we can modify the changeset.
-		e.ccs, err = e.buildChangesetSource(e.repo, e.extSvc)
+		e.ccs, err = e.buildChangesetSource(ctx, e.repo, e.extSvc, e.campaign.LastApplierID)
 		if err != nil {
 			return err
 		}
@@ -179,8 +178,8 @@ func (e *executor) ExecutePlan(ctx context.Context, plan *plan) (err error) {
 	return e.tx.UpdateChangeset(ctx, e.ch)
 }
 
-func (e *executor) buildChangesetSource(repo *repos.Repo, extSvc *repos.ExternalService) (repos.ChangesetSource, error) {
-	sources, err := e.sourcer(extSvc)
+func (e *executor) buildChangesetSource(ctx context.Context, repo *repos.Repo, extSvc *repos.ExternalService, userID int32) (repos.ChangesetSource, error) {
+	sources, err := e.sourcer.ForUser(ctx, userID, extSvc)
 	if err != nil {
 		return nil, err
 	}
@@ -933,21 +932,4 @@ func (d *changesetSpecDelta) NeedCodeHostUpdate() bool {
 
 func (d *changesetSpecDelta) AttributesChanged() bool {
 	return d.NeedCommitUpdate() || d.NeedCodeHostUpdate()
-}
-
-func getUserToken(ctx context.Context, userID int32, repo *types.Repo) (string, error) {
-	accounts, err := db.ExternalAccounts.List(ctx, db.ExternalAccountsListOptions{
-		UserID: userID,
-	})
-	if err != nil {
-		return "", errors.Wrap(err, "listing external accounts")
-	}
-
-	for _, account := range accounts {
-		if account.ServiceType == repo.ExternalRepo.ServiceType && account.ServiceID == repo.ExternalRepo.ServiceID {
-			return account.AuthData, nil
-		}
-	}
-
-	return "", nil
 }
