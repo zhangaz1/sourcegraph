@@ -174,7 +174,7 @@ func TestParseParameterList(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.Name, func(t *testing.T) {
 			parser := &parser{buf: []byte(tt.Input), heuristics: parensAsPatterns | allowDanglingParens}
-			result, err := parser.parseLeavesRegexp()
+			result, err := parser.parseLeaves(Regexp)
 			if err != nil {
 				t.Fatal(fmt.Sprintf("Unexpected error: %s", err))
 			}
@@ -702,7 +702,7 @@ func TestParse(t *testing.T) {
 		{
 			Input:         `)(())(`,
 			WantGrammar:   Spec(`unbalanced expression`),
-			WantHeuristic: Diff(`"(())("`),
+			WantHeuristic: Same,
 		},
 		{
 			Input:         `foo( and bar(`,
@@ -717,7 +717,7 @@ func TestParse(t *testing.T) {
 		{
 			Input:         `(a or (b and )) or d)`,
 			WantGrammar:   Spec(`unbalanced expression`),
-			WantHeuristic: Diff(`(or "(a" (and "(b" ")") "d)")`),
+			WantHeuristic: Same,
 		},
 		// Quotes and escape sequences.
 		{
@@ -963,7 +963,7 @@ func TestMergePatterns(t *testing.T) {
 	for _, tt := range cases {
 		t.Run("merge pattern", func(t *testing.T) {
 			p := &parser{buf: []byte(tt.input), heuristics: parensAsPatterns}
-			nodes, err := p.parseLeavesRegexp()
+			nodes, err := p.parseLeaves(Regexp)
 			got := nodes[0].(Pattern).Annotation.Range.String()
 			if err != nil {
 				t.Error(err)
@@ -1042,7 +1042,7 @@ func TestParseAndOrLiteral(t *testing.T) {
 		{
 			Input:      "(",
 			Want:       `"("`,
-			WantLabels: "HeuristicDanglingParens,Literal",
+			WantLabels: "Literal",
 		},
 		{
 			Input:      "repo:foo foo( or bar(",
@@ -1057,7 +1057,7 @@ func TestParseAndOrLiteral(t *testing.T) {
 		{
 			Input:      "repo:foo (x",
 			Want:       `(and "repo:foo" "(x")`,
-			WantLabels: "HeuristicDanglingParens,Literal",
+			WantLabels: "Literal",
 		},
 		{
 			Input:      "(x or bar() )",
@@ -1067,17 +1067,17 @@ func TestParseAndOrLiteral(t *testing.T) {
 		{
 			Input:      "(x",
 			Want:       `"(x"`,
-			WantLabels: "HeuristicDanglingParens,Literal",
+			WantLabels: "Literal",
 		},
 		{
 			Input:      "x or (x",
 			Want:       `(or "x" "(x")`,
-			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,Literal",
+			WantLabels: "HeuristicHoisted,Literal",
 		},
 		{
 			Input:      "(y or (z",
 			Want:       `(or "(y" "(z")`,
-			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,Literal",
+			WantLabels: "HeuristicHoisted,Literal",
 		},
 		{
 			Input:      "repo:foo (lisp)",
@@ -1107,7 +1107,7 @@ func TestParseAndOrLiteral(t *testing.T) {
 		{
 			Input:      "repo:foo (lisp or lisp()",
 			Want:       `(and "repo:foo" (or "(lisp" "lisp()"))`,
-			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,Literal",
+			WantLabels: "HeuristicHoisted,Literal",
 		},
 		{
 			Input:      "(y or bar())",
@@ -1117,7 +1117,7 @@ func TestParseAndOrLiteral(t *testing.T) {
 		{
 			Input:      "((x or bar(",
 			Want:       `(or "((x" "bar(")`,
-			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,Literal",
+			WantLabels: "HeuristicHoisted,Literal",
 		},
 		{
 			Input:      "",
@@ -1284,7 +1284,7 @@ func TestParseAndOrLiteral(t *testing.T) {
 		{
 			Input:      `bar and (foo or x\) ()`,
 			Want:       `(or (and "bar" "(foo") (concat "x\\)" "()"))`,
-			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,HeuristicParensAsPatterns,Literal",
+			WantLabels: "HeuristicHoisted,Literal",
 		},
 		// For implementation simplicity, behavior preserves whitespace
 		// inside parentheses.
@@ -1299,45 +1299,54 @@ func TestParseAndOrLiteral(t *testing.T) {
 			WantLabels: "HeuristicHoisted,HeuristicParensAsPatterns,Literal",
 		},
 		{
+			Input:      "repo:foo )foo(",
+			WantError:  `unbalanced expression`,
+			WantLabels: "None",
+		},
+		{
 			Input:      "repo:foo )main( or (lisp    lisp)",
-			Want:       `(and "repo:foo" (or ")main(" "(lisp    lisp)"))`,
-			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,HeuristicParensAsPatterns,Literal",
+			WantError:  "unbalanced expression",
+			WantLabels: "None",
 		},
 		{
 			Input:      "repo:foo ) main( or (lisp    lisp)",
-			Want:       `(and "repo:foo" (or (concat ")" "main(") "(lisp    lisp)"))`,
-			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,HeuristicParensAsPatterns,Literal",
+			WantError:  "unbalanced expression",
+			WantLabels: "None",
 		},
 		{
 			Input:      "repo:foo )))) main( or (lisp    lisp) and )))",
-			Want:       `(and "repo:foo" (or (concat "))))" "main(") (and "(lisp    lisp)" ")))")))`,
-			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,HeuristicParensAsPatterns,Literal",
-		},
-
-		{
-			Input:      `"quoted"`,
-			Want:       `"\"quoted\""`,
-			WantLabels: "Literal",
+			WantError:  "unbalanced expression",
+			WantLabels: "None",
 		},
 		{
 			Input:      `repo:foo Args or main)`,
-			Want:       `(and "repo:foo" (or "Args" "main)"))`,
-			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,Literal",
+			WantError:  "unbalanced expression",
+			WantLabels: "None",
 		},
 		{
 			Input:      `repo:foo Args) and main`,
-			Want:       `(and "repo:foo" "Args)" "main")`,
-			WantLabels: "HeuristicDanglingParens,Literal",
+			WantError:  "unbalanced expression",
+			WantLabels: "None",
 		},
 		{
 			Input:      `repo:foo bar and baz)`,
-			Want:       `(and "repo:foo" "bar" "baz)")`,
-			WantLabels: "HeuristicDanglingParens,Literal",
+			WantError:  "unbalanced expression",
+			WantLabels: "None",
 		},
 		{
 			Input:      `repo:foo bar)) and baz`,
-			Want:       `(and "repo:foo" "bar))" "baz")`,
-			WantLabels: "HeuristicDanglingParens,Literal",
+			WantError:  "unbalanced expression",
+			WantLabels: "None",
+		},
+		{
+			Input:      `repo:foo (bar and baz))`,
+			WantError:  "unbalanced expression",
+			WantLabels: "None",
+		},
+		{
+			Input:      `repo:foo (bar and (baz)))`,
+			WantError:  "unbalanced expression",
+			WantLabels: "None",
 		},
 		{
 			Input:      `repo:foo (bar( and baz())`,
@@ -1345,14 +1354,9 @@ func TestParseAndOrLiteral(t *testing.T) {
 			WantLabels: "Literal",
 		},
 		{
-			Input:      `repo:foo (bar and baz))`,
-			WantError:  `i'm having trouble understanding that query. The combination of parentheses is the problem. Try using the content: filter to quote patterns that contain parentheses`,
-			WantLabels: "None",
-		},
-		{
-			Input:      `repo:foo (bar and (baz)))`,
-			WantError:  `i'm having trouble understanding that query. The combination of parentheses is the problem. Try using the content: filter to quote patterns that contain parentheses`,
-			WantLabels: "None",
+			Input:      `"quoted"`,
+			Want:       `"\"quoted\""`,
+			WantLabels: "Literal",
 		},
 		// This test input should error because the single quote in 'after' is unclosed.
 		{
@@ -1363,12 +1367,12 @@ func TestParseAndOrLiteral(t *testing.T) {
 		// Fringe tests cases at the boundary of heuristics and invalid syntax.
 		{
 			Input:      `)(0 )0`,
-			Want:       `(concat ")(0" ")0")`,
-			WantLabels: "HeuristicDanglingParens,Literal",
+			WantError:  "unbalanced expression",
+			WantLabels: "None",
 		},
 		{
 			Input:      `((R:)0))0`,
-			WantError:  `invalid query syntax`,
+			WantError:  "unbalanced expression",
 			WantLabels: "None",
 		},
 	}
