@@ -265,9 +265,9 @@ func (p *parser) skipSpaces() error {
 	return nil
 }
 
-// ScanAnyPatternLiteral consumes all characters up to a whitespace character
+// ScanToken consumes all characters up to a whitespace character
 // and returns the string and how much it consumed.
-func ScanAnyPatternLiteral(buf []byte) (scanned string, count int) {
+func ScanToken(buf []byte) (scanned string, count int) {
 	var advance int
 	var r rune
 	var result []rune
@@ -514,7 +514,7 @@ func ScanField(buf []byte) (string, bool, int) {
 // a value (e.g., at a parentheses), and which escape sequences to interpret. It
 // returns the scanned value, how much was advanced, and whether the
 // allowDanglingParenthesis heuristic was applied
-func ScanValue(buf []byte, allowDanglingParens bool) (string, int, bool) {
+func ScanTokenWithEscape(buf []byte, consumeParens bool) (string, int, bool) {
 	var count, advance, balanced int
 	var r rune
 	var result []rune
@@ -540,7 +540,7 @@ func ScanValue(buf []byte, allowDanglingParens bool) (string, int, bool) {
 			if r == ')' {
 				balanced--
 			}
-			if allowDanglingParens {
+			if consumeParens {
 				result = append(result, r)
 				continue
 			}
@@ -622,7 +622,7 @@ func (p *parser) ParseFieldValue() (string, error) {
 	value, advance, ok := ScanBalancedPatternLiteral(p.buf[p.pos:])
 	if !ok {
 		// The above failed, so attempt a best effort.
-		value, advance, _ = ScanValue(p.buf[p.pos:], false)
+		value, advance, _ = ScanTokenWithEscape(p.buf[p.pos:], false)
 	}
 	p.pos += advance
 	return value, nil
@@ -639,14 +639,7 @@ func (p *parser) TryParseDelimitedPattern() (Pattern, bool) {
 		} else {
 			labels = Literal | Quoted
 		}
-		return Pattern{
-			Value:   value,
-			Negated: false,
-			Annotation: Annotation{
-				Labels: labels,
-				Range:  newRange(start, p.pos),
-			},
-		}, true
+		return newPattern(value, false, labels, newRange(start, p.pos)), true
 	}
 	return Pattern{}, false
 }
@@ -667,55 +660,49 @@ func (p *parser) TryScanBalancedPatternLiteral(label labels) (Pattern, bool) {
 	return Pattern{}, false
 }
 
+func newPattern(value string, negated bool, labels labels, range_ Range) Pattern {
+	return Pattern{
+		Value:   value,
+		Negated: false,
+		Annotation: Annotation{
+			Labels: labels,
+			Range:  range_,
+		},
+	}
+}
+
 // ParsePattern parses a leaf node Pattern that corresponds to a search pattern.
 // Note that ParsePattern may be called multiple times (a query can have
 // multiple Patterns concatenated together).
 func (p *parser) ParsePattern(label labels) Pattern {
 	if label == Regexp {
-		// If we can parse a well-delimited value, that takes precedence. Only do this for Regexp.
+		// First try parse delimited values for regexp.
 		if pattern, ok := p.TryParseDelimitedPattern(); ok {
 			return pattern
 		}
-		if isSet(p.heuristics, parensAsPatterns) {
-			if pattern, ok := p.TryScanBalancedPatternLiteral(label); ok {
-				return pattern
-			}
-		}
+	}
 
-		start := p.pos
-		value, advance, sawDanglingParen := ScanValue(p.buf[p.pos:], isSet(p.heuristics, allowDanglingParens))
-		var labels labels
-		if sawDanglingParen {
-			labels = HeuristicDanglingParens | label
-		} else {
-			labels = label
-		}
-		p.pos += advance
-		// Invariant: the pattern can't be quoted since we checked for that.
-		return Pattern{
-			Value:   value,
-			Negated: false,
-			Annotation: Annotation{
-				Labels: labels,
-				Range:  newRange(start, p.pos),
-			},
-		}
-	} else {
-		start := p.pos
+	if isSet(p.heuristics, parensAsPatterns) {
 		if pattern, ok := p.TryScanBalancedPatternLiteral(label); ok {
 			return pattern
 		}
-		value, advance := ScanAnyPatternLiteral(p.buf[p.pos:])
-		p.pos += advance
-		return Pattern{
-			Value:   value,
-			Negated: false,
-			Annotation: Annotation{
-				Labels: label,
-				Range:  newRange(start, p.pos),
-			},
-		}
 	}
+
+	start := p.pos
+	var value string
+	var advance int
+	var sawDanglingParen bool
+	if label == Regexp {
+		value, advance, sawDanglingParen = ScanTokenWithEscape(p.buf[p.pos:], isSet(p.heuristics, allowDanglingParens))
+		if sawDanglingParen {
+			label = HeuristicDanglingParens | label
+		}
+	} else {
+		value, advance = ScanToken(p.buf[p.pos:])
+	}
+	p.pos += advance
+	return newPattern(value, false, label, newRange(start, p.pos))
+
 }
 
 // ParseParameter returns a leaf node corresponding to the syntax
