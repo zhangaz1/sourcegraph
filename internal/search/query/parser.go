@@ -629,7 +629,7 @@ func (p *parser) ParseFieldValue() (string, error) {
 }
 
 // Try parse a delimited pattern, returns OK if succeeds.
-func (p *parser) ParseDelimitedPattern() (Pattern, bool) {
+func (p *parser) TryParseDelimitedPattern() (Pattern, bool) {
 	start := p.pos
 	if value, delimiter, ok := p.TryParseDelimiter(); ok {
 		var labels labels
@@ -651,26 +651,33 @@ func (p *parser) ParseDelimitedPattern() (Pattern, bool) {
 	return Pattern{}, false
 }
 
+func (p *parser) TryScanBalancedPatternLiteral(label labels) (Pattern, bool) {
+	if value, advance, ok := ScanBalancedPatternLiteral(p.buf[p.pos:]); ok {
+		pattern := Pattern{
+			Value:   value,
+			Negated: false,
+			Annotation: Annotation{
+				Labels: label,
+				Range:  newRange(p.pos, p.pos+advance),
+			},
+		}
+		p.pos += advance
+		return pattern, true
+	}
+	return Pattern{}, false
+}
+
 // ParsePattern parses a leaf node Pattern that corresponds to a search pattern.
 // Note that ParsePattern may be called multiple times (a query can have
 // multiple Patterns concatenated together).
 func (p *parser) ParsePattern(label labels) Pattern {
 	if label == Regexp {
 		// If we can parse a well-delimited value, that takes precedence. Only do this for Regexp.
-		if pattern, ok := p.ParseDelimitedPattern(); ok {
+		if pattern, ok := p.TryParseDelimitedPattern(); ok {
 			return pattern
 		}
 		if isSet(p.heuristics, parensAsPatterns) {
-			if value, advance, ok := ScanBalancedPatternLiteral(p.buf[p.pos:]); ok {
-				pattern := Pattern{
-					Value:   value,
-					Negated: false,
-					Annotation: Annotation{
-						Labels: label,
-						Range:  newRange(p.pos, p.pos+advance),
-					},
-				}
-				p.pos += advance
+			if pattern, ok := p.TryScanBalancedPatternLiteral(label); ok {
 				return pattern
 			}
 		}
@@ -694,18 +701,9 @@ func (p *parser) ParsePattern(label labels) Pattern {
 			},
 		}
 	} else {
-		// parsepatternliteral
 		start := p.pos
-		if value, advance, ok := ScanBalancedPatternLiteral(p.buf[p.pos:]); ok && value != "" {
-			p.pos += advance
-			return Pattern{
-				Value:   value,
-				Negated: false,
-				Annotation: Annotation{
-					Labels: label,
-					Range:  newRange(start, p.pos),
-				},
-			}
+		if pattern, ok := p.TryScanBalancedPatternLiteral(label); ok {
+			return pattern
 		}
 		value, advance := ScanAnyPatternLiteral(p.buf[p.pos:])
 		p.pos += advance
