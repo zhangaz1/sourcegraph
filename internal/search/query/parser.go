@@ -628,31 +628,38 @@ func (p *parser) ParseFieldValue() (string, error) {
 	return value, nil
 }
 
+// Try parse a delimited pattern, returns OK if succeeds.
+func (p *parser) ParseDelimitedPattern() (Pattern, bool) {
+	start := p.pos
+	if value, delimiter, ok := p.TryParseDelimiter(); ok {
+		var labels labels
+		if delimiter == '/' {
+			// This is a regex-delimited pattern
+			labels = Regexp
+		} else {
+			labels = Literal | Quoted
+		}
+		return Pattern{
+			Value:   value,
+			Negated: false,
+			Annotation: Annotation{
+				Labels: labels,
+				Range:  newRange(start, p.pos),
+			},
+		}, true
+	}
+	return Pattern{}, false
+}
+
 // ParsePattern parses a leaf node Pattern that corresponds to a search pattern.
 // Note that ParsePattern may be called multiple times (a query can have
 // multiple Patterns concatenated together).
 func (p *parser) ParsePattern(label labels) Pattern {
 	if label == Regexp {
-		start := p.pos
 		// If we can parse a well-delimited value, that takes precedence. Only do this for Regexp.
-		if value, delimiter, ok := p.TryParseDelimiter(); ok {
-			var labels labels
-			if delimiter == '/' {
-				// This is a regex-delimited pattern
-				labels = Regexp
-			} else {
-				labels = Literal | Quoted
-			}
-			return Pattern{
-				Value:   value,
-				Negated: false,
-				Annotation: Annotation{
-					Labels: labels,
-					Range:  newRange(start, p.pos),
-				},
-			}
+		if pattern, ok := p.ParseDelimitedPattern(); ok {
+			return pattern
 		}
-
 		if isSet(p.heuristics, parensAsPatterns) {
 			if value, advance, ok := ScanBalancedPatternLiteral(p.buf[p.pos:]); ok {
 				pattern := Pattern{
@@ -668,6 +675,7 @@ func (p *parser) ParsePattern(label labels) Pattern {
 			}
 		}
 
+		start := p.pos
 		value, advance, sawDanglingParen := ScanValue(p.buf[p.pos:], isSet(p.heuristics, allowDanglingParens))
 		var labels labels
 		if sawDanglingParen {
