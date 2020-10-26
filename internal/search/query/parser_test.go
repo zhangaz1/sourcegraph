@@ -336,7 +336,7 @@ func parseAndOrGrammar(in string) ([]Node, error) {
 		return nil, err
 	}
 	if parser.balanced != 0 {
-		return nil, errors.New("unbalanced expression")
+		return nil, errors.New("unbalanced expression: unmatched closing parenthesis )")
 	}
 	return newOperator(nodes, And), nil
 }
@@ -536,7 +536,7 @@ func TestParse(t *testing.T) {
 		{
 			Name:          "Unbalanced",
 			Input:         "(foo) (bar",
-			WantGrammar:   Spec("unbalanced expression"),
+			WantGrammar:   Spec(`unbalanced expression: unmatched closing parenthesis )`),
 			WantHeuristic: Diff(`(concat "(foo)" "(bar")`),
 		},
 		{
@@ -701,7 +701,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			Input:         `)(())(`,
-			WantGrammar:   Spec(`unbalanced expression`),
+			WantGrammar:   Spec(`unbalanced expression: unmatched closing parenthesis )`),
 			WantHeuristic: Same,
 		},
 		{
@@ -716,7 +716,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			Input:         `(a or (b and )) or d)`,
-			WantGrammar:   Spec(`unbalanced expression`),
+			WantGrammar:   Spec(`unbalanced expression: unmatched closing parenthesis )`),
 			WantHeuristic: Same,
 		},
 		// Quotes and escape sequences.
@@ -813,7 +813,7 @@ func TestParse(t *testing.T) {
 		// Fringe tests cases at the boundary of heuristics and invalid syntax.
 		{
 			Input:         `(0(F)(:())(:())(<0)0()`,
-			WantGrammar:   Spec(`unbalanced expression`),
+			WantGrammar:   Spec(`unbalanced expression: unmatched closing parenthesis )`),
 			WantHeuristic: `"(0(F)(:())(:())(<0)0()"`,
 		},
 		// The space-looking character below is U+00A0.
@@ -1042,7 +1042,7 @@ func TestParseAndOrLiteral(t *testing.T) {
 		{
 			Input:      "(",
 			Want:       `"("`,
-			WantLabels: "Literal",
+			WantLabels: "HeuristicDanglingParens,Literal",
 		},
 		{
 			Input:      "repo:foo foo( or bar(",
@@ -1057,7 +1057,7 @@ func TestParseAndOrLiteral(t *testing.T) {
 		{
 			Input:      "repo:foo (x",
 			Want:       `(and "repo:foo" "(x")`,
-			WantLabels: "Literal",
+			WantLabels: "HeuristicDanglingParens,Literal",
 		},
 		{
 			Input:      "(x or bar() )",
@@ -1067,17 +1067,17 @@ func TestParseAndOrLiteral(t *testing.T) {
 		{
 			Input:      "(x",
 			Want:       `"(x"`,
-			WantLabels: "Literal",
+			WantLabels: "HeuristicDanglingParens,Literal",
 		},
 		{
 			Input:      "x or (x",
 			Want:       `(or "x" "(x")`,
-			WantLabels: "HeuristicHoisted,Literal",
+			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,Literal",
 		},
 		{
 			Input:      "(y or (z",
 			Want:       `(or "(y" "(z")`,
-			WantLabels: "HeuristicHoisted,Literal",
+			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,Literal",
 		},
 		{
 			Input:      "repo:foo (lisp)",
@@ -1107,7 +1107,7 @@ func TestParseAndOrLiteral(t *testing.T) {
 		{
 			Input:      "repo:foo (lisp or lisp()",
 			Want:       `(and "repo:foo" (or "(lisp" "lisp()"))`,
-			WantLabels: "HeuristicHoisted,Literal",
+			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,Literal",
 		},
 		{
 			Input:      "(y or bar())",
@@ -1117,7 +1117,7 @@ func TestParseAndOrLiteral(t *testing.T) {
 		{
 			Input:      "((x or bar(",
 			Want:       `(or "((x" "bar(")`,
-			WantLabels: "HeuristicHoisted,Literal",
+			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,Literal",
 		},
 		{
 			Input:      "",
@@ -1284,7 +1284,7 @@ func TestParseAndOrLiteral(t *testing.T) {
 		{
 			Input:      `bar and (foo or x\) ()`,
 			Want:       `(or (and "bar" "(foo") (concat "x\\)" "()"))`,
-			WantLabels: "HeuristicHoisted,Literal",
+			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,Literal",
 		},
 		// For implementation simplicity, behavior preserves whitespace
 		// inside parentheses.
@@ -1300,52 +1300,52 @@ func TestParseAndOrLiteral(t *testing.T) {
 		},
 		{
 			Input:      "repo:foo )foo(",
-			WantError:  `unbalanced expression`,
+			WantError:  "unbalanced expression: unmatched closing parenthesis )",
 			WantLabels: "None",
 		},
 		{
 			Input:      "repo:foo )main( or (lisp    lisp)",
-			WantError:  "unbalanced expression",
+			WantError:  "unbalanced expression: unmatched closing parenthesis )",
 			WantLabels: "None",
 		},
 		{
 			Input:      "repo:foo ) main( or (lisp    lisp)",
-			WantError:  "unbalanced expression",
+			WantError:  "unbalanced expression: unmatched closing parenthesis )",
 			WantLabels: "None",
 		},
 		{
 			Input:      "repo:foo )))) main( or (lisp    lisp) and )))",
-			WantError:  "unbalanced expression",
+			WantError:  "unbalanced expression: unmatched closing parenthesis )",
 			WantLabels: "None",
 		},
 		{
 			Input:      `repo:foo Args or main)`,
-			WantError:  "unbalanced expression",
+			WantError:  "unbalanced expression: unmatched closing parenthesis )",
 			WantLabels: "None",
 		},
 		{
 			Input:      `repo:foo Args) and main`,
-			WantError:  "unbalanced expression",
+			WantError:  "unbalanced expression: unmatched closing parenthesis )",
 			WantLabels: "None",
 		},
 		{
 			Input:      `repo:foo bar and baz)`,
-			WantError:  "unbalanced expression",
+			WantError:  "unbalanced expression: unmatched closing parenthesis )",
 			WantLabels: "None",
 		},
 		{
 			Input:      `repo:foo bar)) and baz`,
-			WantError:  "unbalanced expression",
+			WantError:  "unbalanced expression: unmatched closing parenthesis )",
 			WantLabels: "None",
 		},
 		{
 			Input:      `repo:foo (bar and baz))`,
-			WantError:  "unbalanced expression",
+			WantError:  "unbalanced expression: unmatched closing parenthesis )",
 			WantLabels: "None",
 		},
 		{
 			Input:      `repo:foo (bar and (baz)))`,
-			WantError:  "unbalanced expression",
+			WantError:  "unbalanced expression: unmatched closing parenthesis )",
 			WantLabels: "None",
 		},
 		{
@@ -1367,12 +1367,12 @@ func TestParseAndOrLiteral(t *testing.T) {
 		// Fringe tests cases at the boundary of heuristics and invalid syntax.
 		{
 			Input:      `)(0 )0`,
-			WantError:  "unbalanced expression",
+			WantError:  "unbalanced expression: unmatched closing parenthesis )",
 			WantLabels: "None",
 		},
 		{
 			Input:      `((R:)0))0`,
-			WantError:  "unbalanced expression",
+			WantError:  "unbalanced expression: unmatched closing parenthesis )",
 			WantLabels: "None",
 		},
 	}

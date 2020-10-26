@@ -265,9 +265,9 @@ func (p *parser) skipSpaces() error {
 	return nil
 }
 
-// ScanToken consumes all characters up to a whitespace character
+// ScanAnyPatternLiteral consumes all characters up to a whitespace character
 // and returns the string and how much it consumed.
-func ScanToken(buf []byte) (scanned string, count int) {
+func ScanAnyPatternLiteral(buf []byte) (scanned string, count int) {
 	var advance int
 	var r rune
 	var result []rune
@@ -512,9 +512,9 @@ func ScanField(buf []byte) (string, bool, int) {
 // ScanValue scans for a value (e.g., of a parameter, or a string corresponding
 // to a search pattern). Its main function is to determine when to stop scanning
 // a value (e.g., at a parentheses), and which escape sequences to interpret. It
-// returns the scanned value, how much was advanced, and whether the
-// allowDanglingParenthesis heuristic was applied
-func ScanTokenWithEscape(buf []byte, consumeParens bool) (string, int, bool) {
+// returns the scanned value, how much was advanced, and whether to allow
+// scanning dangling parentheses in patterns like "foo(".
+func ScanValue(buf []byte, allowDanglingParens bool) (string, int) {
 	var count, advance, balanced int
 	var r rune
 	var result []rune
@@ -540,7 +540,7 @@ func ScanTokenWithEscape(buf []byte, consumeParens bool) (string, int, bool) {
 			if r == ')' {
 				balanced--
 			}
-			if consumeParens {
+			if allowDanglingParens {
 				result = append(result, r)
 				continue
 			}
@@ -557,7 +557,7 @@ func ScanTokenWithEscape(buf []byte, consumeParens bool) (string, int, bool) {
 		}
 		result = append(result, r)
 	}
-	return string(result), count, balanced != 0
+	return string(result), count
 }
 
 // TryParseDelimiter tries to parse a delimited string, returning the
@@ -622,7 +622,7 @@ func (p *parser) ParseFieldValue() (string, error) {
 	value, advance, ok := ScanBalancedPatternLiteral(p.buf[p.pos:])
 	if !ok {
 		// The above failed, so attempt a best effort.
-		value, advance, _ = ScanTokenWithEscape(p.buf[p.pos:], false)
+		value, advance = ScanValue(p.buf[p.pos:], false)
 	}
 	p.pos += advance
 	return value, nil
@@ -646,14 +646,7 @@ func (p *parser) TryParseDelimitedPattern() (Pattern, bool) {
 
 func (p *parser) TryScanBalancedPatternLiteral(label labels) (Pattern, bool) {
 	if value, advance, ok := ScanBalancedPatternLiteral(p.buf[p.pos:]); ok {
-		pattern := Pattern{
-			Value:   value,
-			Negated: false,
-			Annotation: Annotation{
-				Labels: label,
-				Range:  newRange(p.pos, p.pos+advance),
-			},
-		}
+		pattern := newPattern(value, false, label, newRange(p.pos, p.pos+advance))
 		p.pos += advance
 		return pattern, true
 	}
@@ -691,14 +684,13 @@ func (p *parser) ParsePattern(label labels) Pattern {
 	start := p.pos
 	var value string
 	var advance int
-	var sawDanglingParen bool
 	if label == Regexp {
-		value, advance, sawDanglingParen = ScanTokenWithEscape(p.buf[p.pos:], isSet(p.heuristics, allowDanglingParens))
-		if sawDanglingParen {
-			label = HeuristicDanglingParens | label
-		}
+		value, advance = ScanValue(p.buf[p.pos:], isSet(p.heuristics, allowDanglingParens))
 	} else {
-		value, advance = ScanToken(p.buf[p.pos:])
+		value, advance = ScanAnyPatternLiteral(p.buf[p.pos:])
+	}
+	if isSet(p.heuristics, allowDanglingParens) {
+		label.set(HeuristicDanglingParens)
 	}
 	p.pos += advance
 	return newPattern(value, false, label, newRange(start, p.pos))
@@ -776,8 +768,6 @@ loop:
 		}
 		switch {
 		case p.match(LPAREN) && !isSet(p.heuristics, allowDanglingParens):
-			// In this block, potentially see if allowDanglingParens, and then
-			// go and do the literal thing. Maybe.
 			if isSet(p.heuristics, parensAsPatterns) {
 				if value, advance, ok := ScanBalancedPatternLiteral(p.buf[p.pos:]); ok {
 					pattern := Pattern{
@@ -806,7 +796,7 @@ loop:
 			nodes = append(nodes, result...)
 		case p.expect(RPAREN) && !isSet(p.heuristics, allowDanglingParens):
 			if p.balanced <= 0 {
-				return nil, errors.New("unbalanced expression")
+				return nil, errors.New("unbalanced expression: unmatched closing parenthesis )")
 			}
 			p.balanced--
 			p.heuristics |= disambiguated
