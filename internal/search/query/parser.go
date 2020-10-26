@@ -628,7 +628,7 @@ func (p *parser) ParseFieldValue() (string, error) {
 	return value, nil
 }
 
-// Try parse a delimited pattern, returns OK if succeeds.
+// Try parse a delimited pattern, quoted as "...", '...', or /.../.
 func (p *parser) TryParseDelimitedPattern() (Pattern, bool) {
 	start := p.pos
 	if value, delimiter, ok := p.TryParseDelimiter(); ok {
@@ -668,7 +668,7 @@ func newPattern(value string, negated bool, labels labels, range_ Range) Pattern
 // Note that ParsePattern may be called multiple times (a query can have
 // multiple Patterns concatenated together).
 func (p *parser) ParsePattern(label labels) Pattern {
-	if label == Regexp {
+	if label.isSet(Regexp) {
 		// First try parse delimited values for regexp.
 		if pattern, ok := p.TryParseDelimitedPattern(); ok {
 			return pattern
@@ -684,7 +684,7 @@ func (p *parser) ParsePattern(label labels) Pattern {
 	start := p.pos
 	var value string
 	var advance int
-	if label == Regexp {
+	if label.isSet(Regexp) {
 		value, advance = ScanValue(p.buf[p.pos:], isSet(p.heuristics, allowDanglingParens))
 	} else {
 		value, advance = ScanAnyPatternLiteral(p.buf[p.pos:])
@@ -770,15 +770,10 @@ loop:
 		case p.match(LPAREN) && !isSet(p.heuristics, allowDanglingParens):
 			if isSet(p.heuristics, parensAsPatterns) {
 				if value, advance, ok := ScanBalancedPatternLiteral(p.buf[p.pos:]); ok {
-					pattern := Pattern{
-						Value:   value,
-						Negated: false,
-						Annotation: Annotation{
-							Labels: label | HeuristicParensAsPatterns,
-							Range:  newRange(p.pos, p.pos+advance),
-						},
+					if label.isSet(Literal) {
+						label.set(HeuristicParensAsPatterns)
 					}
-
+					pattern := newPattern(value, false, label, newRange(p.pos, p.pos+advance))
 					p.pos += advance
 					nodes = append(nodes, pattern)
 					continue
@@ -804,15 +799,7 @@ loop:
 				// We parsed "()".
 				if isSet(p.heuristics, parensAsPatterns) {
 					// Interpret literally.
-					nodes = []Node{
-						Pattern{
-							Value: "()",
-							Annotation: Annotation{
-								Labels: Literal | HeuristicParensAsPatterns,
-								Range:  newRange(start, p.pos),
-							},
-						},
-					}
+					nodes = []Node{newPattern("()", false, Literal|HeuristicParensAsPatterns, newRange(start, p.pos))}
 				} else {
 					// Interpret as a group: return an empty non-nil node.
 					nodes = []Node{Parameter{}}

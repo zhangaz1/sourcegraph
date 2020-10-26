@@ -312,16 +312,14 @@ func TestConvertEmptyGroupsToLiteral(t *testing.T) {
 			wantLabels: Regexp,
 		},
 		{
-			input: `(search\()`,
-			want:  `"(search\\()"`,
-			// FIXME should not get this label
-			wantLabels: Regexp | HeuristicParensAsPatterns,
+			input:      `(search\()`,
+			want:       `"(search\\()"`,
+			wantLabels: Regexp,
 		},
 		{
-			input: `()search\(()`,
-			want:  `"\\(\\)search\\(\\(\\)"`,
-			// FIXME should not get this label
-			wantLabels: Regexp | HeuristicParensAsPatterns,
+			input:      `()search\(()`,
+			want:       `"\\(\\)search\\(\\(\\)"`,
+			wantLabels: Regexp,
 		},
 		{
 			input:      `search\(`,
